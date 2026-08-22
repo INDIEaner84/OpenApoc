@@ -8,7 +8,9 @@
     <member type="Section">doodad_types</member>
     <member type="Section">vehicle_equipment</member>
     <member type="Section">vehicle_ammo</member>
+    <member type="Section">buildings</member>
     <member type="SectionMap">cities</member>
+    <member type="Section">scenery_tile_types</member>
     <member type="Section">ufo_growth_lists</member>
     <member type="Section">ufo_mission_preference</member>
     <member type="Section">ufo_incursions</member>
@@ -16,6 +18,7 @@
     <member type="Section">player_bases</member>
     <member type="Section">vehicles</member>
     <member type="Section">ufopaedia</member>
+    <member type="Section">ufopaedia_entries</member>
     <member type="Section">research</member>
     <member type="Section">agents</member>
     <member type="Section">agent_types</member>
@@ -62,8 +65,7 @@
     <member type="Section">damage_modifiers</member>
     <member type="Section">damage_types</member>
     <member type="Section">agent_equipment</member>
-    <member type="Section">equipment_sets_by_score</member>
-    <member type="Section">equipment_sets_by_level</member>
+    <member type="Section">equipment_sets</member>
     <member type="Section">building_functions</member>
     <member>messages</member>
     <member>baseIndex</member>
@@ -198,6 +200,7 @@
   <object>
     <name>EquipmentSet</name>
     <member>id</member>
+    <member>type</member>
     <member>min_score</member>
     <member>max_score</member>
     <member>weapons</member>
@@ -963,9 +966,8 @@
     <name>City</name>
     <member>id</member>
     <member>size</member>
-    <member type="Section">tile_types</member>
     <member type="Section">initial_tiles</member>
-    <member type="Section">buildings</member>
+    <member>buildings</member>
     <member type="Section">scenery</member>
     <member type="Section">doodads</member>
     <member type="Section">portals</member>
@@ -1860,6 +1862,11 @@
     <value>Physicist</value>
     <value>BioChemist</value>
     <value>Engineer</value>
+  </enum>
+  <enum>
+    <name>EquipmentSet::Type</name>
+    <value>Human</value>
+    <value>Alien</value>
   </enum>
   <enum>
     <name>AgentType::Gender</name>

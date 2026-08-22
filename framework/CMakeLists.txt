@@ -13,13 +13,11 @@ set (FRAMEWORK_SOURCE_FILES
 	image.cpp
 	jukebox.cpp
 	logger.cpp
-	luaframework.cpp
 	palette.cpp
 	physfs_fs.cpp
 	renderer.cpp
 	serialization/serialize.cpp
 	serialization/providers/filedataprovider.cpp
-	serialization/providers/providerwithchecksum.cpp
 	serialization/providers/zipdataprovider.cpp
 	sound.cpp
 	stagestack.cpp
@@ -45,7 +43,6 @@ set (FRAMEWORK_HEADER_FILES
 	jukebox.h
 	keycodes.h
 	logger.h
-	luaframework.h
 	musicloader_interface.h
 	palette.h
 	renderer.h
@@ -250,9 +247,11 @@ endif()
 
 find_path(VORBIS_INCLUDE_DIR vorbis/vorbisfile.h)
 find_library(VORBISFILE_LIBRARY vorbisfile)
+find_library(VORBIS_LIBRARY vorbis)
+find_library(OGG_LIBRARY ogg)
 
 target_include_directories(OpenApoc_Framework PRIVATE ${VORBIS_INCLUDE_DIR})
-target_link_libraries(OpenApoc_Framework PRIVATE ${VORBISFILE_LIBRARY})
+target_link_libraries(OpenApoc_Framework PRIVATE ${VORBISFILE_LIBRARY} ${VORBIS_LIBRARY} ${OGG_LIBRARY})
 
 # Dialog is handled by SDL2
 if(DIALOG_ON_ERROR)

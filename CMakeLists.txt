@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.30)
 
 # This changes the vcpkg features, so needs to be set before the first PROJECT() call
 option(BUILD_LAUNCHER "Build the launcher" ON)
-option(USE_SYSTEM_QT "Use the system-provided QT5 instead of installing the vcpkg package" OFF)
+option(USE_SYSTEM_QT "Use the system-provided QT6 instead of installing the vcpkg package" OFF)
 
 if (BUILD_LAUNCHER AND NOT USE_SYSTEM_QT)
 		list(APPEND VCPKG_MANIFEST_FEATURES "launcher")
@@ -43,8 +43,8 @@ endif()
 
 message("Using CD at \"${CD_PATH}\"")
 
-set(CMAKE_C_FLAGS_SANITIZE "-Og -g -fsanitize=address")
-set(CMAKE_CXX_FLAGS_SANITIZE "-Og -g -fsanitize=address")
+set(CMAKE_C_FLAGS_SANITIZE "-Og -g -fsanitize=address -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS_SANITIZE "-Og -g -fsanitize=address -fno-omit-frame-pointer")
 
 set(CMAKE_C_FLAGS_QUICK "-O1 -g1")
 set(CMAKE_CXX_FLAGS_QUICK "-O1 -g1")
@@ -107,6 +107,7 @@ endif()
 
 set(GLM_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dependencies/glm)
 MARK_AS_ADVANCED(GLM_INCLUDE_DIR)
+add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 
 add_subdirectory(library)
 add_subdirectory(framework)
@@ -115,6 +116,7 @@ add_subdirectory(game/state)
 add_subdirectory(game/ui)
 add_subdirectory(tools)
 add_subdirectory(dependencies)
+add_subdirectory(data/mods/crashing_vehicles)
 
 if (WIN32)
 	set(sources ${sources} "apocicon.rc")

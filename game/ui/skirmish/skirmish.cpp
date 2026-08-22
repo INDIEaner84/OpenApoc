@@ -308,7 +308,8 @@ void Skirmish::goToBattle(bool customAliens, std::map<StateRef<AgentType>, int> 
 	auto city = sourceBase->building->city;
 
 	auto newBuilding = mksp<Building>();
-	city->buildings["BUILDING_SKIRMISH"] = newBuilding;
+	state.buildings["BUILDING_SKIRMISH"] = newBuilding;
+	city->buildings.emplace_back(&state, "BUILDING_SKIRMISH");
 
 	auto newBase = mksp<Base>();
 	state.player_bases["BASE_SKIRMISH"] = newBase;
@@ -374,9 +375,9 @@ void Skirmish::goToBattle(bool customAliens, std::map<StateRef<AgentType>, int> 
 	for (auto &agent : agents)
 	{
 		auto initialEquipment =
-		    playerTech == 0
-		        ? std::list<const AEquipmentType *>()
-		        : EquipmentSet::getByLevel(state, playerTech)->generateEquipmentList(state);
+		    playerTech == 0 ? std::list<const AEquipmentType *>()
+		                    : EquipmentSet::getForType(state, EquipmentSet::Type::Human, playerTech)
+		                          ->generateEquipmentList(state);
 
 		int initialArmorType = menuform->findControlTyped<ScrollBar>("ARMOR_SLIDER")->getValue();
 		switch (initialArmorType)

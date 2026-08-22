@@ -457,7 +457,6 @@ bool GameState::serialize(SerializationArchive *archive) const
 	{
 		GameState defaultState;
 		auto root = archive->newRoot("", "gamestate");
-		root->addNode("serialization_version", GAMESTATE_SERIALIZATION_VERSION);
 		serializeOut(root, *this, defaultState);
 	}
 	catch (SerializationException &e)
@@ -473,7 +472,6 @@ bool GameState::serialize(SerializationArchive *archive, const GameState &refere
 	try
 	{
 		auto root = archive->newRoot("", "gamestate");
-		root->addNode("serialization_version", GAMESTATE_SERIALIZATION_VERSION);
 		serializeOut(root, *this, reference);
 	}
 	catch (SerializationException &e)
@@ -721,7 +719,8 @@ bool BattleMapSectorTiles::loadSector(GameState &state, const UString &path)
 	auto archive = SerializationArchive::readArchive(path);
 	if (!archive)
 	{
-		LogError("Failed to read \"{0}\"", path);
+		// Can fail in normal use - e.g. if trying to load an optional  "patch"
+		LogInfo("Failed to read BattleMapSectorTiles \"{0}\"", path);
 		return false;
 	}
 

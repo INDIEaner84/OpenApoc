@@ -37,12 +37,13 @@
 #include "game/state/tilemap/tilemap.h"
 #include "game/state/tilemap/tileobject_vehicle.h"
 #include "library/strings_format.h"
+#include <ctime>
 #include <random>
 
 namespace OpenApoc
 {
 
-GameState::GameState() : player(this) { luaGameState.init(*this); }
+GameState::GameState() : player(this) {}
 
 GameState::~GameState()
 {
@@ -87,24 +88,26 @@ GameState::~GameState()
 	{
 		org.second->current_relations.clear();
 	}
-	for (auto &city : this->cities)
+	for (auto &t : this->scenery_tile_types)
 	{
-		for (auto &building : city.second->buildings)
-		{
-			auto &bld = building.second;
-			bld->city.clear();
-			bld->function.clear();
-			bld->owner.clear();
-			bld->base_layout.clear();
-			bld->base.clear();
-			bld->battle_map.clear();
-			bld->preset_crew.clear();
-			bld->current_crew.clear();
-			bld->currentVehicles.clear();
-			bld->currentAgents.clear();
-			bld->researchUnlock.clear();
-			bld->accessTopic.clear();
-		}
+		// Some damaged tile links can loop, causing a leak if they're not broken
+		t.second->damagedTile.clear();
+	}
+	for (auto &building : this->buildings)
+	{
+		auto &bld = building.second;
+		bld->city.clear();
+		bld->function.clear();
+		bld->owner.clear();
+		bld->base_layout.clear();
+		bld->base.clear();
+		bld->battle_map.clear();
+		bld->preset_crew.clear();
+		bld->current_crew.clear();
+		bld->currentVehicles.clear();
+		bld->currentAgents.clear();
+		bld->researchUnlock.clear();
+		bld->accessTopic.clear();
 	}
 }
 
@@ -147,11 +150,10 @@ void GameState::initState()
 		{
 			for (auto &b : city->buildings)
 			{
-				auto &building = b.second;
 				Vec2<int> pos2d{s->initialPosition.x, s->initialPosition.y};
-				if (building->bounds.within(pos2d))
+				if (b->bounds.within(pos2d))
 				{
-					s->building = {this, building};
+					s->building = b;
 					if (s->isAlive() && !s->type->commonProperty)
 					{
 						s->building->buildingParts.insert(s->initialPosition);
@@ -176,7 +178,7 @@ void GameState::initState()
 				// Uncomment this if algoritm improves
 				// for (auto &b : c.second->buildings)
 				//{
-				//	b.second->initBuilding(*this);
+				//	b->initBuilding(*this);
 				//}
 			}
 		}
@@ -252,8 +254,8 @@ void GameState::initState()
 	{
 		// Initialize organization funding by running throught two-week funding
 		// This lets workers to move around
-		updateHumanEconomy();
-		updateHumanEconomy();
+		updateOrgFinances();
+		updateOrgFinances();
 	}
 
 	// Run necessary methods for different types
@@ -266,7 +268,7 @@ void GameState::initState()
 	skipTurboCalculations = config().getBool("OpenApoc.NewFeature.SkipTurboMovement");
 }
 
-void GameState::applyMods() { luaGameState.callHook("applyMods", 0, 0); }
+void GameState::applyMods() {}
 
 void GameState::setCurrentCity(StateRef<City> city)
 {
@@ -429,63 +431,59 @@ void GameState::validateResearch()
 
 void GameState::validateScenery()
 {
-	for (auto &c : cities)
+	for (auto &sc : scenery_tile_types)
 	{
-		for (auto &sc : c.second->tile_types)
+		auto thisSc = StateRef<SceneryTileType>{this, sc.first};
+		std::set<StateRef<SceneryTileType>> seenTypes;
+		while (thisSc->damagedTile)
 		{
-			auto thisSc = StateRef<SceneryTileType>{this, sc.first};
-			std::set<StateRef<SceneryTileType>> seenTypes;
-			while (thisSc->damagedTile)
+			seenTypes.insert(thisSc);
+			bool roadAlive = false;
+			bool roadDead = false;
+			bool newRoad = false;
+			if (thisSc->tile_type != SceneryTileType::TileType::Road &&
+			    thisSc->damagedTile->tile_type == SceneryTileType::TileType::Road)
 			{
-				seenTypes.insert(thisSc);
-				bool roadAlive = false;
-				bool roadDead = false;
-				bool newRoad = false;
-				if (thisSc->tile_type != SceneryTileType::TileType::Road &&
-				    thisSc->damagedTile->tile_type == SceneryTileType::TileType::Road)
+				newRoad = true;
+			}
+			else
+			{
+				for (int i = 0; i < 4; i++)
 				{
-					newRoad = true;
-				}
-				else
-				{
-					for (int i = 0; i < 4; i++)
+					if (thisSc->connection[i] &&
+					    thisSc->connection[i] == thisSc->damagedTile->connection[i])
 					{
-						if (thisSc->connection[i] &&
-						    thisSc->connection[i] == thisSc->damagedTile->connection[i])
-						{
-							roadAlive = true;
-						}
-						if (thisSc->connection[i] &&
-						    thisSc->connection[i] != thisSc->damagedTile->connection[i])
-						{
-							roadDead = true;
-						}
-						if (!thisSc->connection[i] &&
-						    thisSc->connection[i] != thisSc->damagedTile->connection[i])
-						{
-							newRoad = true;
-						}
+						roadAlive = true;
+					}
+					if (thisSc->connection[i] &&
+					    thisSc->connection[i] != thisSc->damagedTile->connection[i])
+					{
+						roadDead = true;
+					}
+					if (!thisSc->connection[i] &&
+					    thisSc->connection[i] != thisSc->damagedTile->connection[i])
+					{
+						newRoad = true;
 					}
 				}
-				if (newRoad || (roadAlive && roadDead))
-				{
-					LogError("ROAD MUTATION: In {0} when damaged from {1} to {2} roads go "
-					         "[{3}{4}{5}{6}] "
-					         "to [{7}{8}{9}{10}]",
-					         sc.first, thisSc.id, thisSc->damagedTile.id,
-					         (int)thisSc->connection[0], (int)thisSc->connection[1],
-					         (int)thisSc->connection[2], (int)thisSc->connection[3],
-					         (int)thisSc->damagedTile->connection[0],
-					         (int)thisSc->damagedTile->connection[1],
-					         (int)thisSc->damagedTile->connection[2],
-					         (int)thisSc->damagedTile->connection[3]);
-				}
-				if (seenTypes.find(thisSc->damagedTile) != seenTypes.end())
-				{
-					break;
-				}
-				thisSc = thisSc->damagedTile;
 			}
+			if (newRoad || (roadAlive && roadDead))
+			{
+				LogError("ROAD MUTATION: In {0} when damaged from {1} to {2} roads go "
+				         "[{3}{4}{5}{6}] "
+				         "to [{7}{8}{9}{10}]",
+				         sc.first, thisSc.id, thisSc->damagedTile.id, (int)thisSc->connection[0],
+				         (int)thisSc->connection[1], (int)thisSc->connection[2],
+				         (int)thisSc->connection[3], (int)thisSc->damagedTile->connection[0],
+				         (int)thisSc->damagedTile->connection[1],
+				         (int)thisSc->damagedTile->connection[2],
+				         (int)thisSc->damagedTile->connection[3]);
+			}
+			if (seenTypes.find(thisSc->damagedTile) != seenTypes.end())
+			{
+				break;
+			}
+			thisSc = thisSc->damagedTile;
 		}
 	}
 }
@@ -531,7 +529,12 @@ void GameState::fillOrgStartingProperty()
 
 void GameState::startGame()
 {
-	luaGameState.callHook("newGame", 0, 0);
+	if (config().getBool("OpenApoc.NewFeature.SeedRng"))
+	{
+		const auto seed = static_cast<uint64_t>(std::time(nullptr));
+		LogInfo("Seeding game RNG with {0}", seed);
+		rng.seed(seed);
+	}
 
 	agentEquipmentTemplates.resize(10);
 
@@ -594,7 +597,7 @@ void GameState::startGame()
 	{
 		for (auto &b : pair.second->buildings)
 		{
-			b.second->ticksDetectionAttemptAccumulated =
+			b->ticksDetectionAttemptAccumulated =
 			    randBoundsExclusive(rng, (unsigned)0, TICKS_PER_DETECTION_ATTEMPT[difficulty]);
 		}
 	}
@@ -629,14 +632,13 @@ void GameState::startGame()
 			buildingIt++;
 		}
 		counter++;
-	} while (buildingIt->second->owner->current_relations[player] < 0 || counter >= giveUpCount);
+	} while ((*buildingIt)->owner->current_relations[player] < 0 || counter >= giveUpCount);
 
 	for (auto &l : initial_aliens.at(difficulty))
 	{
-		buildingIt->second->current_crew[l.first] =
-		    randBoundsExclusive(rng, l.second.x, l.second.y);
+		(*buildingIt)->current_crew[l.first] = randBoundsExclusive(rng, l.second.x, l.second.y);
 	}
-	buildingIt->second->initialInfiltration = true;
+	(*buildingIt)->initialInfiltration = true;
 
 	gameTime = GameTime::midday();
 
@@ -659,8 +661,8 @@ void GameState::fillPlayerStartingProperty()
 	std::vector<sp<Building>> buildingsWithBases;
 	for (auto &b : humanCity->buildings)
 	{
-		if (b.second->base_layout && !b.second->initialInfiltration)
-			buildingsWithBases.push_back(b.second);
+		if (b->base_layout && !b->initialInfiltration)
+			buildingsWithBases.push_back(b.getSp());
 	}
 
 	if (buildingsWithBases.empty())
@@ -1157,7 +1159,7 @@ void GameState::updateEndOfSecond()
 {
 	for (auto &b : current_city->buildings)
 	{
-		b.second->updateCargo(*this);
+		b->updateCargo(*this);
 	}
 	for (auto &v : vehicles)
 	{
@@ -1193,20 +1195,20 @@ void GameState::updateEndOfFiveMinutes()
 
 	for (auto &b : current_city->buildings)
 	{
-		if (!b.second->base || b.second->owner != getPlayer())
+		if (!b->base || b->owner != getPlayer())
 		{
 			continue;
 		}
 
-		auto base = b.second->base;
-		for (auto it = b.second->currentVehicles.begin(); it != b.second->currentVehicles.end();)
+		auto base = b->base;
+		for (auto it = b->currentVehicles.begin(); it != b->currentVehicles.end();)
 		{
 			auto v = *it;
 			if (this->vehicles.find(v.id) == this->vehicles.end())
 			{
 				LogWarning("{0} not found, but removal was successful..", v.id);
 				v.clear();
-				it = b.second->currentVehicles.erase(it);
+				it = b->currentVehicles.erase(it);
 				continue;
 			}
 
@@ -1249,9 +1251,9 @@ void GameState::updateEndOfFiveMinutes()
 	// Detection calculation stops when detection happens
 	for (auto &b : current_city->buildings)
 	{
-		bool detected = b.second->ticksDetectionTimeOut > 0;
-		b.second->updateDetection(*this, TICKS_PER_MINUTE * 5);
-		if (b.second->ticksDetectionTimeOut > 0 && !detected)
+		bool detected = b->ticksDetectionTimeOut > 0;
+		b->updateDetection(*this, TICKS_PER_MINUTE * 5);
+		if (b->ticksDetectionTimeOut > 0 && !detected)
 		{
 			break;
 		}
@@ -1324,7 +1326,6 @@ void GameState::updateEndOfDay()
 		c.second->dailyLoop(*this);
 	}
 
-	luaGameState.callHook("updateEndOfDay", 0, 0);
 	// Check if today is the first day of the week (monday).
 	// In that case, do not show the daily report as it's already part of the weekly report
 	// event
@@ -1332,11 +1333,130 @@ void GameState::updateEndOfDay()
 		fw().pushEvent(new GameEvent(GameEventType::DailyReport));
 }
 
+// Spawns alien reinforcements in CITYMAP_ALIEN based on the weekly UFO_GROWTH_<week> list,
+// capped by UFO_GROWTH_LIMIT minus the alien fleet already present.
+void GameState::updateUfoGrowth()
+{
+	const int week = static_cast<int>(this->gameTime.getWeek());
+
+	// TODO: Make this query the UFOGrowth::week value?
+	auto growthIt = this->ufo_growth_lists.find(format("UFO_GROWTH_{0}", week));
+	if (growthIt == this->ufo_growth_lists.end())
+	{
+		growthIt = this->ufo_growth_lists.find("UFO_GROWTH_DEFAULT");
+	}
+	if (growthIt == this->ufo_growth_lists.end())
+	{
+		LogWarning("No valid UFO growth lists found");
+		return;
+	}
+	const auto &growth = growthIt->second;
+
+	const auto limitIt = this->ufo_growth_lists.find("UFO_GROWTH_LIMIT");
+	if (limitIt == this->ufo_growth_lists.end())
+	{
+		return;
+	}
+	const auto &limit = limitIt->second;
+
+	StateRef<City> alienCity = {this, "CITYMAP_ALIEN"};
+	if (!alienCity)
+	{
+		LogError("updateUfoGrowth: CITYMAP_ALIEN not found");
+		return;
+	}
+	StateRef<Organisation> alienOrg = {this, "ORG_ALIEN"};
+
+	// Start with the per-type cap from UFO_GROWTH_LIMIT, then subtract the alien fleet
+	// already present in CITYMAP_ALIEN to get the remaining spawn allowance.
+	std::map<UString, int> vehicleAllowance;
+	for (const auto &entry : limit->vehicleTypeList)
+	{
+		vehicleAllowance[entry.first] += entry.second;
+	}
+	for (const auto &vp : this->vehicles)
+	{
+		const auto &v = vp.second;
+		if (v->owner == alienOrg && v->city == alienCity)
+		{
+			vehicleAllowance[v->type.id] -= 1;
+		}
+	}
+
+	for (const auto &entry : growth->vehicleTypeList)
+	{
+		const UString &vtId = entry.first;
+		const int requested = entry.second;
+
+		if (this->vehicle_types.find(vtId) == this->vehicle_types.end())
+		{
+			continue;
+		}
+		const int toAdd = std::min(requested, vehicleAllowance[vtId]);
+		if (toAdd <= 0)
+		{
+			continue;
+		}
+
+		StateRef<VehicleType> vt = {this, vtId};
+		for (int i = 0; i < toAdd; i++)
+		{
+			const Vec3<float> pos = {
+			    static_cast<float>(randBoundsExclusive(rng, 20, 120)),
+			    static_cast<float>(randBoundsExclusive(rng, 20, 120)),
+			    static_cast<float>(alienCity->size.z - 1),
+			};
+			alienCity->placeVehicle(*this, vt, alienOrg, pos, 0.0f);
+		}
+	}
+}
+
+// Runs the weekly market simulation across vehicle_types, vehicle_equipment, vehicle_ammo
+// and agent_equipment, updating stock and price per item via EconomyInfo::update.
+void GameState::updateItemMarket()
+{
+	std::vector<UString> newItems;
+
+	const auto processMap = [this, &newItems](const auto &map)
+	{
+		for (const auto &entry : map)
+		{
+			const UString &id = entry.first;
+			const auto &item = entry.second;
+			const auto econIt = this->economy.find(id);
+			if (econIt == this->economy.end())
+			{
+				continue;
+			}
+			const bool xcom = item->manufacturer == this->player;
+			if (econIt->second.update(*this, xcom))
+			{
+				newItems.push_back(id);
+			}
+		}
+	};
+
+	processMap(this->vehicle_types);
+	processMap(this->vehicle_equipment);
+	processMap(this->vehicle_ammo);
+	processMap(this->agent_equipment);
+
+	if (!newItems.empty())
+	{
+		LogInfo("New items available this week:");
+		for (const auto &id : newItems)
+		{
+			LogInfo("  {0}", id);
+		}
+	}
+}
+
 void GameState::updateEndOfWeek(bool gameStart)
 {
-	updateHumanEconomy();
+	updateOrgFinances();
 
-	luaGameState.callHook("updateEndOfWeek", 0, 0);
+	updateUfoGrowth();
+	updateItemMarket();
 
 	fw().pushEvent(new GameEvent(GameEventType::WeeklyReport));
 	weeklyPlayerUpdate();
@@ -1407,12 +1527,10 @@ void GameState::weeklyPlayerUpdate()
 		}
 	}
 	player->balance = player->balance - totalSalary - basesCosts;
-
-	weekScore.reset();
 }
 
 // Recalculates AI organization and civilian finances, updating budgets and salaries
-void GameState::updateHumanEconomy()
+void GameState::updateOrgFinances()
 {
 	// TODO: remove hardcoded references
 	auto humanCity = cities["CITYMAP_HUMAN"];
@@ -1448,13 +1566,13 @@ void GameState::updateHumanEconomy()
 
 	// Step 3. Calculate civilians leaving work because of the low wage
 	const int minimumWage = std::max(humanCity->averageWage, 30);
-	for (auto &[id, build] : humanCity->buildings)
+	for (auto &b : humanCity->buildings)
 	{
-		if (build->currentWage < minimumWage)
+		if (b->currentWage < minimumWage)
 		{
-			const int satisfiedWorkers = build->currentWorkforce * build->currentWage / minimumWage;
-			const int workersLeaving = build->currentWorkforce - satisfiedWorkers;
-			build->currentWorkforce = satisfiedWorkers;
+			const int satisfiedWorkers = b->currentWorkforce * b->currentWage / minimumWage;
+			const int workersLeaving = b->currentWorkforce - satisfiedWorkers;
+			b->currentWorkforce = satisfiedWorkers;
 			humanCity->populationWorking -= workersLeaving;
 			humanCity->populationUnemployed += workersLeaving;
 		}
@@ -1470,33 +1588,33 @@ void GameState::updateHumanEconomy()
 		if (humanCity->populationUnemployed <= 0)
 			break;
 
-		for (auto &[id, build] : humanCity->buildings)
+		for (auto &b : humanCity->buildings)
 		{
-			if (build->currentWage > expectedWage)
+			if (b->currentWage > expectedWage)
 			{
 				int workersJoining = humanCity->populationUnemployed;
-				if (build->currentWage < defaultSalary * 30 / 100)
+				if (b->currentWage < defaultSalary * 30 / 100)
 				{
 					workersJoining = 0;
 				}
-				else if (build->currentWage < defaultSalary * 75 / 100)
+				else if (b->currentWage < defaultSalary * 75 / 100)
 				{
 					// std::min so we can't overflow here
-					workersJoining = workersJoining * std::min(build->currentWage, 100) / 100;
+					workersJoining = workersJoining * std::min(b->currentWage, 100) / 100;
 					// fall-through was intended
-					if (build->currentWage < defaultSalary * 60 / 100)
+					if (b->currentWage < defaultSalary * 60 / 100)
 						workersJoining /= 10;
-					if (build->currentWage < defaultSalary * 45 / 100)
+					if (b->currentWage < defaultSalary * 45 / 100)
 						workersJoining /= 20;
 				}
 
 				// make sure there's room for everybody
 				workersJoining =
-				    std::min(workersJoining, build->maximumWorkforce - build->currentWorkforce);
+				    std::min(workersJoining, b->maximumWorkforce - b->currentWorkforce);
 
 				if (workersJoining)
 				{
-					build->currentWorkforce += workersJoining;
+					b->currentWorkforce += workersJoining;
 					humanCity->populationWorking += workersJoining;
 					humanCity->populationUnemployed -= workersJoining;
 				}
@@ -1507,18 +1625,18 @@ void GameState::updateHumanEconomy()
 	}
 
 	// Step 5. Adjust the building wages to attract new workers
-	for (auto &[id, build] : humanCity->buildings)
+	for (auto &b : humanCity->buildings)
 	{
 		// Skip calculations if building has no space for workers (e.g. destroyed)
-		if (build->maximumWorkforce == 0)
+		if (b->maximumWorkforce == 0)
 		{
 			continue;
 		}
 
-		const int maximum = build->maximumWorkforce;
-		const int current = build->currentWorkforce;
-		const int profitabilityLimit = build->incomePerCapita - build->maintenanceCosts / maximum;
-		double wage = build->currentWage;
+		const int maximum = b->maximumWorkforce;
+		const int current = b->currentWorkforce;
+		const int profitabilityLimit = b->incomePerCapita - b->maintenanceCosts / maximum;
+		double wage = b->currentWage;
 
 		if (current < maximum * 60 / 100)
 		{
@@ -1540,7 +1658,7 @@ void GameState::updateHumanEconomy()
 		}
 
 		// make sure we're not losing money
-		build->currentWage = (wage < profitabilityLimit) ? wage : profitabilityLimit;
+		b->currentWage = (wage < profitabilityLimit) ? wage : profitabilityLimit;
 	}
 }
 
@@ -1555,11 +1673,13 @@ int GameState::calculateFundingModifier() const
 
 		// If score threshold is positive, then score has to be higher
 		// (i.e. 10000 rating uses 6400's value)
-		if ((threshold.first > 0 && totalRating > threshold.second) ||
-		    (threshold.first <= 0 && totalRating < threshold.first))
+		int scoreThreshold = threshold.first;
+		int modifier = threshold.second;
+
+		if ((scoreThreshold <= 0 && totalRating < scoreThreshold) ||
+		    (scoreThreshold > 0 && totalRating > scoreThreshold))
 		{
-			fundingModifier = threshold.second;
-			break;
+			fundingModifier = modifier;
 		}
 	}
 	return fundingModifier;
@@ -1740,8 +1860,6 @@ void GameState::loadMods()
 			}
 		}
 
-		const auto &modLoadScript = modInfo.getModLoadScript();
-
 		auto _language = getModLanguageInfo(modInfo);
 		LogInfo("Loading mod language");
 		if (_language)
@@ -1760,11 +1878,18 @@ void GameState::loadMods()
 		}
 		LogInfo("Loading mod language complete");
 
-		if (!modLoadScript.empty())
+		const auto &difficultySubmods = modInfo.getDifficultySubmods();
+		const auto difficultySubmodIt = difficultySubmods.find(this->difficulty);
+		if (difficultySubmodIt != difficultySubmods.end())
 		{
-			LogInfo("Executing modLoad script \"{0}\" for mod \"{1}\"", modLoadScript,
-			        modInfo.getID());
-			this->luaGameState.runScript(modLoadScript);
+			const auto &difficultySubmodPath = difficultySubmodIt->second;
+			LogInfo("Loading difficulty-{0} submod \"{1}\" for mod \"{2}\"", this->difficulty,
+			        difficultySubmodPath, modInfo.getID());
+			if (!this->appendGameState(difficultySubmodPath))
+			{
+				LogError("Failed to load difficulty-{0} submod \"{1}\" for mod \"{2}\"",
+				         this->difficulty, difficultySubmodPath, modInfo.getID());
+			}
 		}
 	}
 }
