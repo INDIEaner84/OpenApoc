@@ -182,6 +182,12 @@ before execution. The project owner approved the complete feature set on
 
 ### Done
 
+- **2026-08-22** — Started F3 P1–P3 core: added a serialized, mission-independent
+  `BattleUnitPlanAction` model and per-unit authored plan state. The executor
+  releases one action at a time into the existing mission system and currently
+  supports movement with per-leg speed, stance changes, facing, timed waits,
+  go-code barriers, start/restart, pause/resume and cancellation/clearing APIs.
+  UI route editing/rendering and squad-level go-code controls are next.
 - **2026-08-22** — Implemented the F1 medevac mission core: added the dedicated,
   savegame-serialized `VehicleMission::MissionType::MedicalEvacuation`, its
   factory, lifecycle handling, mission naming, validation, and map rendering.
@@ -202,10 +208,10 @@ before execution. The project owner approved the complete feature set on
 1. **F1 medevac integration** — add focused mission tests, expose a manual city
    UI order, add departure/arrival `GameEvent` messages, and then add the
    optional post-battle dispatch hook. Core pickup and return behavior exists.
-2. **F3 tactical planning, P1 design slice** — map the existing overview,
-   battle controls, unit selection and `BattleUnitMission` execution paths;
-   then introduce the serialized plan/action model and route-only executor
-   before adding UI editing.
+2. **F3 tactical planning integration** — connect the new serialized action
+   model/executor to squad-level go-code controls and tactical route editing and
+   rendering; then extend action types to doors, attacks, throws, equipment and
+   safety/replanning policies.
 3. **F2 base building** — clarify the open questions in Feature Backlog F2
    with the project owner, then break into tasks.
 4. **Engine modernization** starting with the small, self-contained
