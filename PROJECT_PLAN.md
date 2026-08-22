@@ -187,7 +187,10 @@ before execution. The project owner approved the complete feature set on
   releases one action at a time into the existing mission system and currently
   supports movement with per-leg speed, stance changes, facing, timed waits,
   go-code barriers, start/restart, pause/resume and cancellation/clearing APIs.
-  UI route editing/rendering and squad-level go-code controls are next.
+  A first keyboard-driven UI is now connected: selected units can append hovered
+  tiles, execute/pause/clear plans, append/release Alpha/Bravo/Charlie barriers,
+  and see their remaining route legs rendered in the battlescape. Dedicated
+  buttons, waypoint manipulation, action menus and overview-map polish remain.
 - **2026-08-22** — Implemented the F1 medevac mission core: added the dedicated,
   savegame-serialized `VehicleMission::MissionType::MedicalEvacuation`, its
   factory, lifecycle handling, mission naming, validation, and map rendering.

@@ -3101,6 +3101,70 @@ bool BattleView::handleKeyDown(Event *e)
 			else
 				setUpdateSpeed(lastSpeed);
 			return true;
+		case SDLK_p:
+		{
+			if (debugHotkeyMode)
+				break;
+			// Tactical planning keyboard workflow. Plain P appends the currently
+			// highlighted tile; Shift executes, Alt pauses/resumes, Ctrl clears.
+			if (battle.battleViewSelectedUnits.empty())
+				return true;
+			if (modifierLCtrl || modifierRCtrl)
+			{
+				for (auto &unit : battle.battleViewSelectedUnits)
+					unit->clearPlan();
+			}
+			else if (modifierLShift || modifierRShift)
+			{
+				for (auto &unit : battle.battleViewSelectedUnits)
+					unit->startPlan(true);
+			}
+			else if (modifierLAlt || modifierRAlt)
+			{
+				for (auto &unit : battle.battleViewSelectedUnits)
+					unit->pausePlan(!unit->planPaused);
+			}
+			else
+			{
+				BattleUnitPlanAction action;
+				action.type = BattleUnitPlanAction::Type::Move;
+				action.targetLocation = getSelectedTilePosition();
+				for (auto &unit : battle.battleViewSelectedUnits)
+				{
+					action.movementMode = unit->movement_mode;
+					unit->addPlannedAction(action);
+				}
+			}
+			return true;
+		}
+		case SDLK_a:
+		case SDLK_b:
+		case SDLK_c:
+		{
+			// Ctrl+Alt+A/B/C appends a synchronization barrier; Ctrl+Shift+A/B/C
+			// releases it. Requiring two modifiers preserves existing battle hotkeys.
+			if (!(modifierLCtrl || modifierRCtrl))
+				break;
+			const UString goCode = e->keyboard().KeyCode == SDLK_a
+			                           ? "Alpha"
+			                           : e->keyboard().KeyCode == SDLK_b ? "Bravo" : "Charlie";
+			if (modifierLShift || modifierRShift)
+			{
+				for (auto &unit : battle.battleViewSelectedUnits)
+					unit->releasePlanGoCode(goCode);
+				return true;
+			}
+			if (modifierLAlt || modifierRAlt)
+			{
+				BattleUnitPlanAction action;
+				action.type = BattleUnitPlanAction::Type::WaitForGoCode;
+				action.goCode = goCode;
+				for (auto &unit : battle.battleViewSelectedUnits)
+					unit->addPlannedAction(action);
+				return true;
+			}
+			break;
+		}
 		case SDLK_F1:
 			if (config().getBool("OpenApoc.NewFeature.DebugCommandsVisible"))
 			{
