@@ -16,6 +16,7 @@
 #include "game/state/rules/city/citycommonsamplelist.h"
 #include "game/state/rules/city/scenerytiletype.h"
 #include "game/state/rules/city/vehicletype.h"
+#include "game/state/shared/agent.h"
 #include "game/state/shared/doodad.h"
 #include "game/state/shared/organisation.h"
 #include "game/state/tilemap/collision.h"
@@ -25,6 +26,7 @@
 #include "game/state/tilemap/tileobject_vehicle.h"
 #include "library/strings_format.h"
 #include <glm/glm.hpp>
+#include <limits>
 
 namespace OpenApoc
 {
@@ -1588,8 +1590,9 @@ bool VehicleMission::isFinishedInternal(GameState &state, Vehicle &v)
 			return missionCounter > 0;
 		case MissionType::Patrol:
 			return this->missionCounter == 0 && this->currentPlannedPath.empty();
-		case MissionType::GotoBuilding:
 		case MissionType::MedicalEvacuation:
+			return missionCounter > 1;
+		case MissionType::GotoBuilding:
 		case MissionType::InvestigateBuilding:
 			return this->targetBuilding == v.currentBuilding;
 		case MissionType::SelfDestruct:
@@ -2086,9 +2089,92 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 			setFollowPath(state, v);
 			return;
 		}
+		case MissionType::MedicalEvacuation:
+		{
+			if (!targetBuilding)
+			{
+				LogError("Medical evacuation target building disappeared");
+				cancelled = true;
+				return;
+			}
+
+			if (v.currentBuilding != targetBuilding)
+			{
+				v.addMission(state, gotoBuilding(state, v, targetBuilding, allowTeleporter));
+				return;
+			}
+
+			if (missionCounter == 0)
+			{
+				StateRef<Base> destination;
+				int freeMedicalCapacity = 0;
+				float bestDistance = std::numeric_limits<float>::max();
+				for (const auto &entry : state.player_bases)
+				{
+					auto base = entry.second;
+					if (!base || !base->building || base->building->city != v.city)
+						continue;
+					const int free = base->getCapacityTotal(FacilityType::Capacity::Medical) -
+					                 base->getCapacityUsed(state, FacilityType::Capacity::Medical);
+					if (free <= 0)
+						continue;
+					const auto delta = base->building->bounds.p0 - targetBuilding->bounds.p0;
+					const float distance = static_cast<float>(delta.x * delta.x + delta.y * delta.y);
+					const bool isHome = base->building == v.homeBuilding;
+					if (!destination || isHome ||
+					    (destination->building != v.homeBuilding && distance < bestDistance))
+					{
+						destination = base;
+						freeMedicalCapacity = free;
+						bestDistance = distance;
+					}
+				}
+
+				if (!destination)
+				{
+					LogWarning("Medical evacuation found no base with free Medical capacity");
+					cancelled = true;
+					return;
+				}
+
+				const int pickupLimit =
+				    std::min(v.getMaxPassengers() - v.getPassengers(), freeMedicalCapacity);
+				int pickedUp = 0;
+				const auto agents = targetBuilding->currentAgents;
+				for (const auto &agent : agents)
+				{
+					if (pickedUp >= pickupLimit)
+						break;
+					if (agent->owner != state.getPlayer() ||
+					    agent->type->role != AgentType::Role::Soldier ||
+					    agent->modified_stats.health <= 0 ||
+					    agent->modified_stats.health >= agent->current_stats.health)
+						continue;
+					agent->homeBuilding = destination->building;
+					agent->enterVehicle(state, {&state, v.shared_from_this()});
+					pickedUp++;
+				}
+
+				if (pickedUp == 0)
+				{
+					LogInfo("Medical evacuation found no eligible wounded agents");
+					cancelled = true;
+					return;
+				}
+
+				missionCounter = 1;
+				targetBuilding = destination->building;
+				v.addMission(state, gotoBuilding(state, v, targetBuilding, allowTeleporter));
+				return;
+			}
+
+			// The agents remain inside the landed vehicle, matching normal transport
+			// behaviour. Being at their new home base allows medical healing to begin.
+			missionCounter = 2;
+			return;
+		}
 		case MissionType::InvestigateBuilding:
 		case MissionType::GotoBuilding:
-		case MissionType::MedicalEvacuation:
 		{
 			if (isFinishedInternal(state, v))
 			{

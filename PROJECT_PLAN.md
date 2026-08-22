@@ -144,13 +144,16 @@ specified with the project owner — see open questions.)*
 
 ### Done
 
-- **2026-08-22** — Started F1 medevac implementation: added the dedicated,
+- **2026-08-22** — Implemented the F1 medevac mission core: added the dedicated,
   savegame-serialized `VehicleMission::MissionType::MedicalEvacuation`, its
-  factory, building travel/lifecycle handling, mission naming, vehicle mission
-  validation, and city-map destination rendering. Existing enum values remain
-  stable because the new value was appended. This first slice intentionally
-  only establishes travel to the pickup building; loading wounded agents and
-  returning to a suitable base are the next slice.
+  factory, lifecycle handling, mission naming, validation, and map rendering.
+  At the pickup building it now selects wounded living X-COM soldiers, respects
+  both passenger and free Medical capacity, prefers the vehicle's home base
+  when suitable (otherwise the nearest player base in the city), boards the
+  agents, assigns that treatment base as their home, and returns there. Agents
+  remain in the landed vehicle, which is already supported by passive base
+  healing. Existing enum values remain stable because the new value was
+  appended.
 - **2026-08-22** — Synced fork with upstream `OpenApoc/OpenApoc` master
   (`b137e12`, 39 commits, incl. removal of LUA scripting). Full build verified
   (229 targets), 7/10 tests pass (3 need CD data). Architecture analysis written:
@@ -158,10 +161,9 @@ specified with the project owner — see open questions.)*
 
 ### Next Steps (ordered)
 
-1. **F1 medevac, loading phase** — detect wounded X-COM agents at the target
-   building, load them up to passenger capacity, then select and return to a
-   player base with Medical capacity. The dedicated mission/travel foundation
-   is implemented; add focused tests with this slice.
+1. **F1 medevac integration** — add focused mission tests, expose a manual city
+   UI order, add departure/arrival `GameEvent` messages, and then add the
+   optional post-battle dispatch hook. Core pickup and return behavior exists.
 2. **F2 base building** — clarify the open questions in Feature Backlog F2
    with the project owner, then break into tasks.
 3. **Engine modernization** starting with the small, self-contained
