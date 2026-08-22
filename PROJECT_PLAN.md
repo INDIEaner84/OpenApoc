@@ -56,6 +56,90 @@ cd build && ctest -j2   # 7/10 pass; test_images, test_serialize_difficulty0,
                         # test_lab_assignment need CD data — expected failures
 ```
 
+## Feature Backlog
+
+*Gameplay-affecting features agreed with the project owner. These are tracked
+separately from the pure modernization work.*
+
+### F1 — Helicopter troop transport & medevac 🚁
+
+**Goal:** Helicopters (transport vehicles) bring soldiers to the battlefield
+and also **pick up wounded soldiers** and fly them back to a base for healing.
+
+**Current state in the code (analysed 2026-08-22):**
+
+- Vehicles already carry agents: `Vehicle::currentAgents`
+  (`game/state/city/vehicle.h:234`), passenger capacity via `getPassengers()`,
+  and a passenger/cargo service mission (`MissionType::OfferService`).
+- Troop transport to battle **exists**: agents board a vehicle, the vehicle
+  flies to the target building (`VehicleMission::GotoBuilding`), the tactical
+  battle starts from there (`Battle::beginBattle`/`enterBattle`,
+  `game/state/battle/battle.h:309-322`).
+- Wounded handling today: agents heal **only passively at a base** with a
+  Medical facility — 0.8 HP/hour, divided by medical capacity usage
+  (`game/state/shared/agent.cpp:1078-1090`). There is **no medevac**: nobody
+  picks up wounded soldiers; they walk/ride home like everyone else.
+- Vehicle mission types live in `game/state/city/vehiclemission.h:237-259`
+  (21 types: GotoLocation, GotoBuilding, FollowVehicle, AttackVehicle, ...).
+  Agent city movement: `game/state/city/agentmission.*`.
+
+**What needs to be built:**
+
+1. New vehicle mission type (e.g. `MissionType::MedicalEvacuation`) in
+   `vehiclemission.h/.cpp`: fly to a building, load wounded X-COM agents,
+   return to the nearest/home base with free Medical capacity.
+2. Wounded detection: `agent->modified_stats.health <
+   agent->current_stats.health` (see healing code in `agent.cpp`).
+3. Trigger points: (a) manual order from the city UI vehicle panel,
+   (b) optional automatic dispatch after a battle ends with wounded survivors
+   (hook: battle debriefing / `Battle::exitBattle` path).
+4. UI: order button + status display; message log entry when medevac departs
+   and arrives (`GameEvent`).
+5. Serialization: new mission type must be added to
+   `game/state/gamestate_serialize.xml` (savegame compatibility!).
+
+**Files to touch:** `game/state/city/vehiclemission.{h,cpp}`,
+`game/state/city/vehicle.{h,cpp}`, `game/state/shared/agent.cpp`,
+`game/ui/city/` (vehicle orders UI), `gamestate_serialize.xml`.
+
+### F2 — Base building system ("construction system") 🏗️
+
+**Goal:** Improve the base construction system. *(Details still to be
+specified with the project owner — see open questions.)*
+
+**Current state in the code (analysed 2026-08-22):**
+
+- A base is a grid inside a city building; layouts come from
+  `game/state/rules/city/baselayout.*` (which corridors/lift exist).
+- Facilities: `game/state/rules/city/facilitytype.h` — each type has
+  `buildCost`, `buildTime` (days), `weeklyCost` and one capacity type out of:
+  Quarters, Stores, Medical, Training, Psi, Repair, Chemistry, Physics,
+  Workshop, Aliens (`facilitytype.h:16-29`).
+- Build logic: `game/state/city/base.{h,cpp}` —
+  `canBuildFacility()`/`buildFacility()`/`canDestroyFacility()`/
+  `destroyFacility()` with `BuildError` = Occupied, OutOfBounds, NoMoney,
+  Indestructible (`base.h:37-57`). ~640 LOC, clean and compact.
+- UI: `game/ui/base/basescreen.cpp` (build/drag facilities, 558 LOC),
+  `game/ui/city/basebuyscreen.cpp` (buying a new base building, 182 LOC),
+  plus transaction/research/recruit screens in `game/ui/base/`.
+
+**Open questions for the project owner (answer → then this becomes tasks):**
+
+- What exactly should be better? Candidates observed during analysis:
+  - Build queue / multiple constructions with progress display
+  - Cancel/refund running constructions
+  - Facility upgrade paths (e.g. Medical Bay → Advanced Medical)
+  - Better placement UX in `basescreen` (rotate, move before confirm)
+  - Rebalanced costs/build times (data lives in mod files, not code)
+
+### Feature ground rules
+
+- Both features are **additive**: default behaviour without using them must
+  stay identical to the original game (see "Gameplay is preserved" — new
+  functionality is opt-in, existing mechanics unchanged).
+- Every new state field/mission type goes through
+  `gamestate_serialize.xml` so savegames keep working.
+
 ## Status & Next Steps
 
 ### Done
@@ -67,14 +151,16 @@ cd build && ctest -j2   # 7/10 pass; test_images, test_serialize_difficulty0,
 
 ### Next Steps (ordered)
 
-1. **Pick the first modernization target.** Candidate list with rationale is in
-   the "Modernization Opportunities" section of the architecture analysis.
-   Suggested starting point: the small, self-contained `library/` layer
-   (1.5 kLOC) — low risk, everything depends on it, good place to establish
-   modern conventions.
-2. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
+1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start
+   with the new `MedicalEvacuation` vehicle mission (see Feature Backlog F1).
+2. **F2 base building** — clarify the open questions in Feature Backlog F2
+   with the project owner, then break into tasks.
+3. **Engine modernization** starting with the small, self-contained
+   `library/` layer (1.5 kLOC) — low risk, everything depends on it, good
+   place to establish modern conventions.
+4. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
    while touching the respective modules.
-3. Keep the fork regularly synced with upstream to avoid drift.
+5. Keep the fork regularly synced with upstream to avoid drift.
 
 ### Decisions Log
 
@@ -83,3 +169,6 @@ cd build && ctest -j2   # 7/10 pass; test_images, test_serialize_difficulty0,
 | 2026-08-22 | Goal fixed: engine modernization + incremental code rewrite, gameplay preserved. |
 | 2026-08-22 | Development happens without the original CD (`EXTRACT_DATA=OFF`). |
 | 2026-08-22 | This file is the persistent project memory; keep it updated. |
+| 2026-08-22 | Feature F1 agreed: helicopter troop transport + medevac for wounded soldiers. |
+| 2026-08-22 | Feature F2 agreed: improve the base building system (details TBD). |
+| 2026-08-22 | New features must be additive/opt-in; savegame compatibility via `gamestate_serialize.xml` is mandatory. |
