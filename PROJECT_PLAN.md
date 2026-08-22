@@ -132,6 +132,44 @@ specified with the project owner — see open questions.)*
   - Better placement UX in `basescreen` (rotate, move before confirm)
   - Rebalanced costs/build times (data lives in mod files, not code)
 
+### F3 — Tactical squad planning (Rogue Spear style) 🗺️
+
+**Goal:** Extend the tactical overview into an optional command-planning system
+where units and squads can receive complete routes and synchronized actions
+before execution. The project owner approved the complete feature set on
+2026-08-22.
+
+**Agreed scope (implemented incrementally):**
+
+1. **P1 — Route planning:** planning mode; multiple editable waypoints per
+   unit/squad; coloured and numbered route overlays in both tactical overview
+   and isometric battle view; execute, pause, resume and cancel controls.
+2. **P2 — Movement details:** per-leg movement mode (walk/run/crawl), stance,
+   facing direction and timed/indefinite waits at waypoints.
+3. **P3 — Synchronization:** named go-codes (`Alpha`, `Bravo`, `Charlie`, and
+   `Execute`) shared across squads; execute all or release one phase at a time.
+4. **P4 — Tactical actions:** doors, aimed/fire-mode orders, grenade throws,
+   smoke, equipment use, cover and observation/fire sectors.
+5. **P5 — Robustness and UX:** edit/reorder/copy routes, optional templates,
+   TU/time estimates, path/fire-sector conflict and friendly-fire warnings,
+   automatic rerouting, and configurable reactions to contact, injury, panic,
+   blocked paths, missing targets and insufficient TU.
+
+**Architecture rules:**
+
+- Plans are a separate serialized layer, not preloaded directly into
+  `BattleUnit::missions`. A plan executor releases only the next applicable
+  action as a normal `BattleUnitMission`, preserving existing pathfinding, AI,
+  interruption and turn logic.
+- The feature is optional and must support both real-time and turn-based play.
+  Existing controls and unplanned tactical behavior remain unchanged.
+- Every phase needs focused tests before the next phase builds on it.
+
+**Likely files/modules:** `game/state/battle/battleunitmission.*`,
+`game/state/battle/battleunit.*`, a new serialized battle-plan state module,
+`game/ui/battle/`, tactical tile/overview rendering, controls/forms, and
+`game/state/gamestate_serialize.xml`.
+
 ### Feature ground rules
 
 - Both features are **additive**: default behaviour without using them must
@@ -164,14 +202,18 @@ specified with the project owner — see open questions.)*
 1. **F1 medevac integration** — add focused mission tests, expose a manual city
    UI order, add departure/arrival `GameEvent` messages, and then add the
    optional post-battle dispatch hook. Core pickup and return behavior exists.
-2. **F2 base building** — clarify the open questions in Feature Backlog F2
+2. **F3 tactical planning, P1 design slice** — map the existing overview,
+   battle controls, unit selection and `BattleUnitMission` execution paths;
+   then introduce the serialized plan/action model and route-only executor
+   before adding UI editing.
+3. **F2 base building** — clarify the open questions in Feature Backlog F2
    with the project owner, then break into tasks.
-3. **Engine modernization** starting with the small, self-contained
+4. **Engine modernization** starting with the small, self-contained
    `library/` layer (1.5 kLOC) — low risk, everything depends on it, good
    place to establish modern conventions.
-4. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
+5. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
    while touching the respective modules.
-5. Keep the fork regularly synced with upstream to avoid drift.
+6. Keep the fork regularly synced with upstream to avoid drift.
 
 ### Decisions Log
 
@@ -182,4 +224,5 @@ specified with the project owner — see open questions.)*
 | 2026-08-22 | This file is the persistent project memory; keep it updated. |
 | 2026-08-22 | Feature F1 agreed: helicopter troop transport + medevac for wounded soldiers. |
 | 2026-08-22 | Feature F2 agreed: improve the base building system (details TBD). |
+| 2026-08-22 | Feature F3 approved in full: optional Rogue Spear-style tactical route/action planning, go-codes, synchronized execution, and robust dynamic replanning, delivered in phases P1–P5. |
 | 2026-08-22 | New features must be additive/opt-in; savegame compatibility via `gamestate_serialize.xml` is mandatory. |
