@@ -759,6 +759,7 @@ void CityTileView::render()
 						}
 						case VehicleMission::MissionType::AttackBuilding:
 						case VehicleMission::MissionType::GotoBuilding:
+						case VehicleMission::MissionType::MedicalEvacuation:
 						case VehicleMission::MissionType::Land:
 						case VehicleMission::MissionType::OfferService:
 						case VehicleMission::MissionType::InvestigateBuilding:

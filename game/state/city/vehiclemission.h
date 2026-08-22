@@ -209,6 +209,11 @@ class VehicleMission
 	static VehicleMission gotoBuilding(GameState &state, Vehicle &v,
 	                                   StateRef<Building> target = nullptr,
 	                                   bool allowTeleporter = false);
+	// Travel to a building to collect wounded agents. Loading and return-home
+	// phases are added incrementally on top of this dedicated mission type.
+	static VehicleMission medicalEvacuation(GameState &state, Vehicle &v,
+	                                        StateRef<Building> target,
+	                                        bool allowTeleporter = false);
 	static VehicleMission infiltrateOrSubvertBuilding(GameState &state, Vehicle &v,
 	                                                  bool subvert = false,
 	                                                  StateRef<Building> target = nullptr);
@@ -256,13 +261,15 @@ class VehicleMission
 		DepartToSpace,
 		ArriveFromDimensionGate,
 		InvestigateBuilding,
+		// Appended to preserve numeric values of existing serialized missions.
+		MedicalEvacuation,
 	};
 
 	MissionType type = MissionType::GotoLocation;
 
 	// GotoLocation InfiltrateSubvert TakeOff GotoPortal Patrol
 	Vec3<int> targetLocation = {0, 0, 0};
-	// GotoLocation GotoBuilding
+	// GotoLocation GotoBuilding MedicalEvacuation
 	bool allowTeleporter = false;
 	// How many times will vehicle try to re-route until it gives up
 	int reRouteAttempts = 0;
@@ -272,7 +279,7 @@ class VehicleMission
 	bool patrolHome = false;
 	// GotoLocation - picked nearest (allows finishing mission without reaching destination)
 	bool pickedNearest = false;
-	// GotoBuilding AttackBuilding Land Infiltrate
+	// GotoBuilding MedicalEvacuation AttackBuilding Land Infiltrate
 	StateRef<Building> targetBuilding;
 	// FollowVehicle AttackVehicle
 	StateRef<Vehicle> targetVehicle;

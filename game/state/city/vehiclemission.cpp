@@ -434,6 +434,17 @@ VehicleMission VehicleMission::gotoBuilding(GameState &, Vehicle &v, StateRef<Bu
 	return mission;
 }
 
+VehicleMission VehicleMission::medicalEvacuation(GameState &, Vehicle &,
+                                                  StateRef<Building> target,
+                                                  bool allowTeleporter)
+{
+	VehicleMission mission;
+	mission.type = MissionType::MedicalEvacuation;
+	mission.targetBuilding = target;
+	mission.allowTeleporter = allowTeleporter;
+	return mission;
+}
+
 VehicleMission VehicleMission::infiltrateOrSubvertBuilding(GameState &, Vehicle &, bool subvert,
                                                            StateRef<Building> target)
 {
@@ -1268,6 +1279,7 @@ bool VehicleMission::getNextDestination(GameState &state, Vehicle &v, Vec3<float
 			return false;
 		}
 		case MissionType::GotoBuilding:
+		case MissionType::MedicalEvacuation:
 		{
 			return false;
 		}
@@ -1456,6 +1468,7 @@ void VehicleMission::update(GameState &state, Vehicle &v, unsigned int ticks, bo
 		}
 		case MissionType::InfiltrateSubvert:
 		case MissionType::GotoBuilding:
+		case MissionType::MedicalEvacuation:
 		case MissionType::OfferService:
 		case MissionType::AttackVehicle:
 		case MissionType::FollowVehicle:
@@ -1576,6 +1589,7 @@ bool VehicleMission::isFinishedInternal(GameState &state, Vehicle &v)
 		case MissionType::Patrol:
 			return this->missionCounter == 0 && this->currentPlannedPath.empty();
 		case MissionType::GotoBuilding:
+		case MissionType::MedicalEvacuation:
 		case MissionType::InvestigateBuilding:
 			return this->targetBuilding == v.currentBuilding;
 		case MissionType::SelfDestruct:
@@ -2074,6 +2088,7 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 		}
 		case MissionType::InvestigateBuilding:
 		case MissionType::GotoBuilding:
+		case MissionType::MedicalEvacuation:
 		{
 			if (isFinishedInternal(state, v))
 			{
@@ -3117,6 +3132,7 @@ UString VehicleMission::getName()
 	static const std::map<VehicleMission::MissionType, UString> TypeMap = {
 	    {MissionType::GotoLocation, "GotoLocation"},
 	    {MissionType::GotoBuilding, "GotoBuilding"},
+	    {MissionType::MedicalEvacuation, "MedicalEvacuation"},
 	    {MissionType::GotoPortal, "GotoPortal"},
 	    {MissionType::DepartToSpace, "DepartToSpace"},
 	    {MissionType::FollowVehicle, "FollowVehicle"},
@@ -3156,6 +3172,7 @@ UString VehicleMission::getName()
 			name += format(" {0}", this->targetVehicle.id);
 			break;
 		case MissionType::GotoBuilding:
+		case MissionType::MedicalEvacuation:
 		case MissionType::AttackBuilding:
 		case MissionType::TakeOff:
 		case MissionType::Land:

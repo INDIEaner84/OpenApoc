@@ -1614,6 +1614,7 @@
     <value>DepartToSpace</value>
     <value>ArriveFromDimensionGate</value>
     <value>InvestigateBuilding</value>
+    <value>MedicalEvacuation</value>
   </enum>
   <enum>
     <name>AgentMission::MissionType</name>
