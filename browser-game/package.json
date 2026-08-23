@@ -1,0 +1,13 @@
+{
+  "name": "apoc-arena",
+  "version": "0.1.0",
+  "description": "Rundenbasiertes Squad-Taktikspiel im Browser (inspiriert von X-COM: Apocalypse) mit Hotseat-, KI- und Online-PvP-Modus.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-sim.js && node test-base.js && node test-city.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

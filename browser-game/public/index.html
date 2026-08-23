@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apoc Arena – Taktik-Gefecht im Browser</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== Startmenue ===== -->
+  <div id="menu" class="screen">
+    <h1>APOC <span>ARENA</span></h1>
+    <p class="tagline">Squad-Taktikgefecht &middot; Time Units &middot; Fog of War &middot; Reaktionsfeuer &middot; Echtzeit &amp; Runden</p>
+
+    <div class="panel tempo-panel">
+      <h3>Tempo (fuer KI- &amp; Online-Matches)</h3>
+      <div id="tempoSwitch">
+        <button id="tempoTb" class="tempo active">⏱ Rundenbasiert</button>
+        <button id="tempoRt" class="tempo">⚡ Echtzeit</button>
+      </div>
+      <div id="tempoInfo" class="dim">Klassisch: Zug um Zug mit Time Units.</div>
+    </div>
+
+    <div class="panel tempo-panel">
+      <h3>Squad-Groesse</h3>
+      <div id="sizeSwitch">
+        <button class="szbtn" data-size="2">2</button>
+        <button class="szbtn" data-size="3">3</button>
+        <button class="szbtn active" data-size="4">4</button>
+        <button class="szbtn" data-size="5">5</button>
+        <button class="szbtn" data-size="6">6</button>
+      </div>
+      <div class="dim">Empfehlung: 4 &ndash; genug Taktik, schnelle Runden. Maximum 6 (wie die Squads im Original-Apocalypse).</div>
+    </div>
+
+    <div class="menu-buttons">
+      <button id="btnHotseat" class="big">🎮 Hotseat &ndash; 2 Spieler an einem Bildschirm <span class="mini">(immer rundenbasiert)</span></button>
+      <button id="btnAI" class="big">🤖 Gefecht gegen die KI</button>
+      <button id="btnCommando" class="big">🕶 Commando &ndash; 1 Held, direkte Steuerung <span class="mini">(Crusader-Stil: WASD + Maus, Shift = Hechtrolle)</span></button>
+      <div class="online-row">
+        <button id="btnCreate" class="big">🌐 Online-Match erstellen</button>
+      </div>
+      <div class="online-row">
+        <input id="joinCode" maxlength="4" placeholder="CODE">
+        <button id="btnJoin" class="big">Beitreten</button>
+      </div>
+    </div>
+    <p id="menuStatus" class="status"></p>
+    <p id="walletInfo" class="status" style="color:var(--good)"></p>
+    <p><a href="city.html" style="color:var(--accent)">🌆 Stadtkarte: die lebende Stadt</a> &nbsp;·&nbsp; <a href="lab.html" style="color:var(--accent)">🎨 Soldaten-Labor</a> &nbsp;·&nbsp; <a href="base.html" style="color:var(--accent)">🏗️ Basis-Bau</a></p>
+    <div class="howto">
+      <h3>So funktioniert's</h3>
+      <ul>
+        <li><b>Klick auf einen Soldaten</b> waehlt die <b>ganze Gruppe</b> aus (fester Anfuehrer) &ndash; Strg+Klick = einzeln, Shift+Klick = hinzufuegen, Tasten 1&ndash;6 = Einzelauswahl.</li>
+        <li><b>Verwundete 🚑</b>: Bei 0 HP gehen Soldaten zu Boden und verbluten in 3 Runden &ndash; Kamerad daneben stellen und anklicken = stabilisieren (✚). Der Sieger evakuiert seine Verwundeten per Medevac.</li>
+        <li><b>Overwatch 🔭 (O)</b>: Squad haelt TU fuer Reaktionsfeuer zurueck &ndash; die Bewegungsreichweite zeigt nur noch den sicheren Radius.</li>
+        <li><b>Haltungen</b>: 🧎 Knien (K) und 🛌 Liegen (L) = praeziser &amp; schwerer zu treffen, aber langsamer. 🤸 Kampfrolle (R) = 2 Felder hechten, Reaktionsfeuer weicht meist daneben.</li>
+        <li><b>Verhalten (Q)</b>: 🛡 Vorsichtig = Deckung suchen, TU-Reserve, Halt bei Feindkontakt &middot; ⚔ Aggressiv = stur vorruecken.</li>
+        <li><b>Squad-Bewegung</b>: Auf ein Feld klicken &ndash; die Gruppe rueckt in <b>Formation</b> vor (Keil, Linie, Kolonne, Box &ndash; Taste F wechselt).</li>
+        <li><b>Gegner anklicken</b> = Schuss bzw. <b>Salve</b> des ganzen Squads. Trefferchance haengt von Distanz &amp; Deckung ab.</li>
+        <li><b>Fog of War</b>: Du siehst nur, was dein Squad sieht. Erkundetes Terrain bleibt in Erinnerung.</li>
+        <li><b>Reaktionsfeuer</b>: Wer TU uebrig laesst, schiesst automatisch auf Feinde, die sich im Blickfeld bewegen.</li>
+        <li><b>Granaten 💣</b> zerstoeren Kisten und (mit etwas Glueck) Waende &ndash; Vorsicht: auch Zivilisten!</li>
+        <li><b>Atmosphaere</b>: Dropships setzen die Squads ab, Zivilisten fliehen in Panik, schwer verwundete Gegner verlassen das Schlachtfeld.</li>
+        <li><b>Echtzeit-Modus ⚡</b>: keine Zuege &ndash; Befehle geben, Waffen haben Abklingzeit, alles passiert gleichzeitig.</li>
+        <li>Wer das gegnerische Squad ausschaltet, gewinnt.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== Spiel ===== -->
+  <div id="game" class="screen hidden">
+    <div id="topbar">
+      <div id="turnBanner">Zug: Spieler A</div>
+      <div id="modeLabel"></div>
+      <button id="btnPause" class="hidden">⏸ Pause</button>
+      <button id="btnMute">🔊</button>
+      <button id="btnQuit">Verlassen</button>
+    </div>
+    <div id="main">
+      <canvas id="canvas" width="960" height="640"></canvas>
+      <div id="sidebar">
+        <div id="unitCard" class="panel">
+          <h3 id="uName">&ndash;</h3>
+          <div id="uClass" class="dim">&ndash;</div>
+          <div class="bar-wrap"><span>HP</span><div class="bar"><div id="uHp" class="fill hp"></div></div><span id="uHpTxt"></span></div>
+          <div class="bar-wrap" id="tuRow"><span>TU</span><div class="bar"><div id="uTu" class="fill tu"></div></div><span id="uTuTxt"></span></div>
+          <div class="bar-wrap hidden" id="cdRow"><span>CD</span><div class="bar"><div id="uCd" class="fill cd"></div></div><span id="uCdTxt"></span></div>
+          <div id="uWeapon" class="dim"></div>
+        </div>
+        <div class="panel">
+          <h3>Aktion</h3>
+          <div id="fireModes">
+            <button id="fmSnap" class="fm active">Schnell</button>
+            <button id="fmAimed" class="fm">Gezielt</button>
+            <button id="fmNade" class="fm">💣</button>
+            <button id="fmRoll" class="fm" title="Kampfrolle (R)">🤸</button>
+          </div>
+          <div id="stanceRow" style="display:flex;gap:6px;margin-bottom:8px">
+            <button id="stStand" class="fm active" title="Stehen">🧍</button>
+            <button id="stKneel" class="fm" title="Knien (K): +10% Praezision, -8% getroffen">🧎</button>
+            <button id="stProne" class="fm" title="Liegen (L): +18% Praezision, -15% getroffen, robbt langsam">🛌</button>
+            <button id="stGuard" class="fm" title="Overwatch (O): TU-Reserve fuer Reaktionsfeuer zurueckhalten">🔭</button>
+          </div>
+          <div id="fmInfo" class="dim"></div>
+        </div>
+        <div class="panel">
+          <h3>Verhalten <span class="dim">(Q)</span></h3>
+          <div id="squadModes">
+            <button id="smCautious" class="sm active">🛡 Vorsichtig</button>
+            <button id="smAggro" class="sm">⚔ Aggressiv</button>
+          </div>
+          <div class="dim" id="smInfo">Sucht Deckung am Ziel, haelt TU-Reserve, stoppt bei Feindkontakt.</div>
+        </div>
+        <div class="panel">
+          <h3>Formation <span class="dim">(F)</span></h3>
+          <div id="formations">
+            <button id="foKeil" class="fo active">◆ Keil</button>
+            <button id="foLinie" class="fo">▬ Linie</button>
+            <button id="foKolonne" class="fo">▮ Kolonne</button>
+            <button id="foBox" class="fo">▣ Box</button>
+          </div>
+          <div class="dim">Klick auf Soldat = ganze Gruppe (Anfuehrer) · Strg+Klick = einzeln · Shift+Klick = hinzufuegen · Ziehen = Box-Auswahl · A = alle · Rechtsklick = Befehl · Esc = abwaehlen</div>
+        </div>
+        <button id="btnEndTurn" class="big danger">Zug beenden ⏭</button>
+        <div class="panel grow">
+          <h3>Gefechtsprotokoll</h3>
+          <div id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Overlay (Sieg / Hotseat-Wechsel / Warten) ===== -->
+  <div id="overlay" class="hidden">
+    <div id="overlayBox">
+      <h2 id="overlayTitle"></h2>
+      <p id="overlayText"></p>
+      <button id="overlayBtn" class="big">Weiter</button>
+    </div>
+  </div>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>

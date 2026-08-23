@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stadtkarte – Apoc Arena</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #city { max-width: 1330px; margin: 0 auto; padding: 22px 16px 60px; }
+  #city h1 { font-size: 26px; letter-spacing: 3px; }
+  #city h1 span { color: var(--accent); }
+  .backlink { display: inline-block; margin-bottom: 8px; color: var(--accent); text-decoration: none; }
+  #cbar { display: flex; gap: 12px; margin: 10px 0 12px; flex-wrap: wrap; align-items: center; }
+  .res { background: rgba(22,29,39,0.92); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 13px; }
+  .res b { color: var(--warn); }
+  #infilWrap { flex: 1; min-width: 220px; }
+  #infilBar { height: 10px; background: #0a0e13; border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+  #infilFill { height: 100%; background: linear-gradient(90deg, #7a3aff, #ff3aa0); width: 0%; transition: width .4s; }
+  #layout { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  #cityCanvas { background: #07090d; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+  #cside { width: 330px; display: flex; flex-direction: column; gap: 10px; max-height: 660px; overflow-y: auto; }
+  #binfo { font-size: 13px; line-height: 1.55; min-height: 100px; }
+  #binfo h4 { color: var(--accent); margin-bottom: 4px; }
+  #binfo .dim2 { color: var(--dim); }
+  .orgline { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; border-bottom: 1px solid rgba(43,54,70,0.5); }
+  .relbar { width: 90px; height: 8px; background: #0a0e13; border-radius: 4px; overflow: hidden; align-self: center; }
+  .relfill { height: 100%; }
+  #ticker { font-size: 12px; color: var(--dim); line-height: 1.6; max-height: 170px; overflow-y: auto; }
+  #ticker .good { color: var(--good); }
+  #ticker .bad { color: var(--enemy); }
+  #ticker .alarm { color: #ff8dc7; }
+</style>
+</head>
+<body class="ingame">
+<div id="city">
+  <a class="backlink" href="/">&larr; Spiel</a> &middot; <a class="backlink" href="base.html">Basis-Bau</a> &middot; <a class="backlink" href="lab.html">Labor</a>
+  <h1>STADT<span>KARTE</span> <span style="font-size:13px;color:var(--dim)">– die Stadt lebt: jedes Gebaeude hat Funktion &amp; Besitzer</span></h1>
+  <div id="cbar">
+    <div class="res">💰 Beute-Konto: <b id="cWallet">0</b> Cr</div>
+    <div class="res">📅 Tag <b id="cDay">1</b></div>
+    <div class="res">🛸 Aktive Alarme: <b id="cAlarms">0</b></div>
+    <div class="res" id="infilWrap">👾 Alien-Infiltration: <div id="infilBar"><div id="infilFill"></div></div></div>
+  </div>
+  <div id="layout">
+    <canvas id="cityCanvas" width="960" height="640"></canvas>
+    <div id="cside">
+      <div class="panel">
+        <h3>Gebaeude</h3>
+        <div id="binfo">Klicke ein Gebaeude an – jedes hat Funktion, Besitzer und eine Beziehung zu X-Force. Bei 🛸-Alarm: Einsatzteam entsenden!</div>
+      </div>
+      <div class="panel">
+        <h3>Organisationen</h3>
+        <div id="orgs"></div>
+      </div>
+      <div class="panel grow">
+        <h3>Stadt-Ticker</h3>
+        <div id="ticker"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="city.js"></script>
+</body>
+</html>

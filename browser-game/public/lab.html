@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soldaten-Labor – Apoc Arena</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #lab { max-width: 1000px; margin: 0 auto; padding: 28px 18px 60px; }
+  #lab h1 { font-size: 30px; letter-spacing: 3px; margin-bottom: 4px; }
+  #lab h1 span { color: var(--accent); }
+  #lab h2 { color: var(--accent); font-size: 16px; text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 10px; }
+  .concepts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .concept { background: rgba(22,29,39,0.9); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+  .concept img { width: 100%; border-radius: 6px; display: block; }
+  .concept b { display: block; margin-top: 8px; }
+  .concept small { color: var(--dim); line-height: 1.5; display: block; }
+  #labCanvas { background: #10151c; border: 1px solid var(--border); border-radius: 10px; width: 100%; }
+  .backlink { display: inline-block; margin-bottom: 14px; color: var(--accent); text-decoration: none; }
+  .hint { color: var(--dim); margin: 6px 0 12px; }
+  @media (max-width: 760px) { .concepts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body class="ingame">
+<div id="lab">
+  <a class="backlink" href="/">&larr; zurueck zum Spiel</a>
+  <h1>SOLDATEN-<span>LABOR</span></h1>
+  <p class="hint">Design-Prototypen fuer die naechste Grafik-Ausbaustufe.</p>
+
+  <h2>1 &middot; Stilrichtungen (KI-Konzeptzeichnungen)</h2>
+  <div class="concepts">
+    <div class="concept">
+      <img src="design/concept-a-military.png" alt="Stil A">
+      <b>A &middot; Militaerisch-realistisch</b>
+      <small>Detailreiche Panzerung, gedeckte Farben, Leucht-Visiere. Ernster X-COM-Ton.</small>
+    </div>
+    <div class="concept">
+      <img src="design/concept-b-comic.png" alt="Stil B">
+      <b>B &middot; Comic / Cel-Shaded</b>
+      <small>Dicke Outlines, flaechige Farben, extrem lesbar auch bei kleiner Groesse.</small>
+    </div>
+    <div class="concept">
+      <img src="design/concept-c-pixel.png" alt="Stil C">
+      <b>C &middot; Pixel-Art Retro</b>
+      <small>90er X-COM-Nostalgie, knackige Pixel, gealterter Charme.</small>
+    </div>
+    <div class="concept">
+      <img src="design/concept-specials.png" alt="Spezialeinheiten">
+      <b>Spezialeinheiten-Konzept</b>
+      <small>Android (links) &middot; Cyborg &ndash; Wiedergeburt erfahrener Veteranen (Mitte) &middot; Kampflaeufer (rechts).</small>
+    </div>
+    <div class="concept">
+      <img src="design/concept-base.png" alt="Basis">
+      <b>Basis-Konzept (modular)</b>
+      <small>Kommando, Hangar, Reaktor, Cryo-Schlaf, Cyborg-Labor, Mech-Werkstatt &ndash; plus leere Aushub-Slots fuer Erweiterungen. <a href="base.html" style="color:var(--accent)">Interaktiven Prototyp oeffnen &rarr;</a></small>
+    </div>
+    <div class="concept">
+      <img src="design/concept-defense.png" alt="Basisverteidigung">
+      <b>Basisverteidigung (Dungeon-Keeper-Stil)</b>
+      <small>Panzertueren, Deckengeschuetze, Bodenfallen, Gasduesen &ndash; enge Korridore werden zu Todeszonen. <a href="base.html" style="color:var(--accent)">Im Prototyp: Angriff simulieren! &rarr;</a></small>
+    </div>
+    <div class="concept">
+      <img src="design/concept-training.png" alt="Trainingsraeume">
+      <b>Trainingsraeume</b>
+      <small>🏋️ Kraftraum (HP) &middot; 🎯 Schiessstand mit Holo-Zielen (Genauigkeit) &middot; 🤼 Kampfsimulator-Halle, in der Squads Formationen ueben (Reaktion). <a href="base.html" style="color:var(--accent)">Im Basis-Bau trainieren &rarr;</a></small>
+    </div>
+  </div>
+
+  <h2>2 &middot; Engine-Prototypen (live im Spiel-Renderer gezeichnet)</h2>
+  <p class="hint">Vier prozedurale Designs, drei Klassen (Sturm / Sniper / Heavy), beide Teamfarben &ndash; alle drehen sich, genau wie im Spiel. Kein Bild-Download noetig, jede Farbe/Groesse sofort anpassbar.</p>
+  <canvas id="labCanvas" width="960" height="900"></canvas>
+</div>
+<script src="lab.js"></script>
+</body>
+</html>
