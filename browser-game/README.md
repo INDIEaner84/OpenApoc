@@ -28,8 +28,11 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
 - **Verhaltensmodi** (Taste `Q`): 🛡 **Vorsichtig** – Squad sucht am Ziel automatisch Deckung zur Bedrohung, behaelt TU-Reserve fuers Reaktionsfeuer und stoppt in Echtzeit bei Feindkontakt. ⚔ **Aggressiv** – rueckt stur in Formation vor, volles Tempo, keine Deckungssuche
 - **Fog of War**: Sichtweite 11 Felder pro Einheit, Wände blockieren Sicht, erkundetes Terrain bleibt in Erinnerung
 - **Reaktionsfeuer** (Rundenmodus): Einheiten mit Rest-TU schiessen automatisch auf Feinde, die sich durch ihr Blickfeld bewegen
-- **Deckung**: Kisten/Waende zwischen Schuetze und Ziel geben −20 % Trefferchance
-- **Granaten**: Flaechenschaden, zerstoeren Kisten sicher und Waende mit 40 % Chance – Friendly Fire inklusive!
+- **Deckung**: Kisten/Waende zwischen Schuetze und Ziel geben −20 % Trefferchance. Neue **huefthohe Bruestung** (`LOWWALL`, Sandsack/Mauerrest/Harzgrat): blockt nur die Bewegung, man schiesst drueber – deckt kniend/liegend voll (−20 %), stehend nur halb (−12 %)
+- **Granaten**: Flaechenschaden, zerstoeren Kisten sicher, Bruestungen mit 75 % und Waende mit 40 % Chance – Friendly Fire inklusive!
+- **Isometrische Ansicht** (Taste `V`, wird gespeichert): Diamant-Raster mit sichtbarer Gelaendehoehe, Hoehen-Picking und Tiefensortierung (Einheiten stehen wirklich *hinter* Waenden). Die klassische **Draufsicht** bleibt ein Tastendruck entfernt – dieselbe Logik, nur andere Projektion
+- **Level-Design**: vier deterministische Karten-Archetypen mit je eigenem Tileset – 🏚 Bunkerhof (Beton), 🏙 Stadtstrasse (Backstein, Truemmer), 📦 Lagerhalle (Fracht, Regale), 👾 Aliennest (organisch). Gespiegelt & verbindungsgeprueft fuer faire Spawns
+- **Animationen**: eigener Zustandsautomat pro Einheit – 🧍 stehen/atmen, gehen mit Gehzyklus, 🧎 geduckt gehen, 🛌 robben, Kampfrolle, Niedergestreckt – plus Rueckstoss, Muendungsfeuer und pulsierendes Visier, in *beiden* Ansichten
 - **Atmosphaere**:
   - 🚁 **Transporter-Intro**: Dropships fliegen zu Beginn die Spawn-Zonen ab und setzen die Squads sichtbar ab
   - 🏃 **Zivilbevoelkerung**: Zivilisten wuseln ueber die Karte, geraten bei Feuergefechten in Panik und fliehen zum Kartenrand. Granaten kennen keine Unschuldigen – zivile Opfer landen in der Endstatistik
@@ -51,6 +54,7 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
 - **F** oder Formations-Buttons: Formation wechseln (Keil / Linie / Kolonne / Box)
 - **Klick auf Gegner**: Salve der Gruppe (Rundenmodus) bzw. gemeinsames Ziel (Echtzeit)
 - **💣-Button**: Granatenmodus, dann Zielfeld klicken (wirft der Anfuehrer)
+- **V** oder 🧭-Button oben: Ansicht wechseln (isometrisch / Draufsicht)
 - **Leertaste**: Pause (nur Echtzeit gegen KI) · **M**: Ton an/aus
 
 ## Architektur
@@ -61,6 +65,12 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
   Der ausfuehrende Client wuerfelt (Treffer/Schaden) und schickt die Ergebnisse mit
   (owner-authoritative) → keine Desyncs, kein Server-Gamestate noetig.
 - Karten werden aus dem vom Server verteilten Seed **deterministisch** auf beiden Clients erzeugt.
+- **Projektionsschicht** (`sx/sy/screenToTile/tilePath/squash`): Die Logik bleibt im
+  Tile-Raster; Top-Down und Isometrie sind zwei reine Darstellungen derselben
+  Zustaende. `VIEW.mode` ist nur lokal (nie Teil von Befehlen) → online-sicher.
+  Gelaende mit Hoehe (Wand/Kiste/Bruestung) wird als fertige Iso-Sprites gebacken
+  und pro Frame in Tiefenreihenfolge sortiert; Blut/Brandspuren liegen als Liste
+  und ueberstehen Ansichtswechsel & neu gebackenen Boden.
 
 ## Kampagnen-Loop (Spiel ⇄ Basis)
 

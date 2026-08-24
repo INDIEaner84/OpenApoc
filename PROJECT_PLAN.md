@@ -149,6 +149,17 @@ specified with the project owner — see open questions.)*
   (229 targets), 7/10 tests pass (3 need CD data). Architecture analysis written:
   [docs/ARCHITECTURE_ANALYSIS.md](docs/ARCHITECTURE_ANALYSIS.md).
 
+- **2026-08-24** — Browser-Taktikspiel (`browser-game/`) stark ausgebaut:
+  **isometrische Ansicht** (umschaltbar mit `V`, wird pro Client in
+  `localStorage` gemerkt) mit Höhen-Picking und Tiefensortierung; **Level-Design**
+  mit vier deterministischen Karten-Archetypen (Bunkerhof, Stadtstrasse,
+  Lagerhalle, Aliennest), je eigenem Tileset und neuer **huefthoher Bruestung**
+  (`LOWWALL`, blockt nur Bewegung, Deckung haengt von der Haltung ab);
+  **Animations-Zustandsautomat** (idle/walk/crouchWalk/crawl/proneIdle/down/roll)
+  mit Gehzyklus, Rueckstoss und Muendungsfeuer in beiden Ansichten. Tests 23–28
+  decken Projektion, Archetypen, Deckung, Animation und den Renderer ab
+  (headless-Renderer zeichnet nachweislich beide Ansichten).
+
 ### Next Steps (ordered)
 
 1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start
@@ -172,3 +183,5 @@ specified with the project owner — see open questions.)*
 | 2026-08-22 | Feature F1 agreed: helicopter troop transport + medevac for wounded soldiers. |
 | 2026-08-22 | Feature F2 agreed: improve the base building system (details TBD). |
 | 2026-08-22 | New features must be additive/opt-in; savegame compatibility via `gamestate_serialize.xml` is mandatory. |
+| 2026-08-24 | Browser-Spiel: Logik bleibt im Tile-Raster; Ansicht ist reine Projektion (Top-Down ↔ Iso), dadurch keine Desync-Gefahr online (VIEW.mode wird nie serialisiert). |
+| 2026-08-24 | Karten-Archetypen werden nur aus dem Seed gebaut und gespiegelt → faire Spawns, deterministisch auf allen Clients. |
