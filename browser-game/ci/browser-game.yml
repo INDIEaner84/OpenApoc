@@ -1,0 +1,24 @@
+name: Browser-Game Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: browser-game
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dependencies
+        run: npm ci
+      - name: Headless-Tests (Gefecht/Basis/Stadt)
+        run: npm test
+      - name: Netzwerk-End-to-End (WebSocket-Relay)
+        run: |
+          PORT=3100 node server.js &
+          sleep 2
+          PORT=3100 node test-net.js
