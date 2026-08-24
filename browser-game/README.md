@@ -78,6 +78,12 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
 - **Basis-Bau** (`/base.html`, Dungeon-Keeper-Stil): Gaenge in den Fels graben, Sicherheitstueren, Spreng-/Gasfallen, MG-/Laser-Tuerme, 2×2-Raeume mit Energie-Bilanz – und eine **Angriffs-Simulation** in Wellen. Die Beute aus Gefechten wird beim Betreten der Basis gutgeschrieben. Die Basis wird automatisch gespeichert
 - **Cyborg-Veteranen**: Cyborg-Labor bauen → Veteranen aus dem Cryo-Schlaf reaktivieren → sie kaempfen im naechsten KI-Gefecht als **Cyborg-Einheit** mit (62 HP, Reaktion 75, integrierte Armkanone, rotes Cyberauge)
 - **Soldaten-Labor** (`/lab.html`): Design-Prototypen (Soldaten, Android, Cyborg, Kampflaeufer) und Konzept-Artworks
+- **Stadtkarte** (`/city.html`, X-COM-Apocalypse-Look): isometrische Nacht-Neon-Stadt mit
+  extrudierten Gebaeuden (Hoehe je Funktion, beleuchtete Fenster, Neon-Dachkanten in
+  Org-Farbe, flackernde Reklame, Dachdetails), **Elevated-Rail** mit fahrenden Pods,
+  **Flugverkehr** mit Lichtspuren und Bodenschatten, Wolken-Schatten, **Tag/Nacht** und
+  **Regen** mit Pfuetzen-Neon-Schimmer und Blitz. UFOs, Absturzstellen und Strassengefechte
+  bleiben klickbar; Klick/Hover laufen ueber die iso-Rueckprojektion.
 
 ## Tests
 

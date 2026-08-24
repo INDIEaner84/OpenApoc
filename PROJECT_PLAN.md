@@ -160,6 +160,11 @@ specified with the project owner — see open questions.)*
   decken Projektion, Archetypen, Deckung, Animation und den Renderer ab
   (headless-Renderer zeichnet nachweislich beide Ansichten).
 
+- **2026-08-24** — Stadt-Atmosphaere-Phase (autonom): Stadtkarte auf isometrische
+  Nacht-Neon-Optik umgestellt (extrudierte Gebaeude, Neon-Reklame, Dachdetails) und um
+  Elevated-Rail mit Pods, Flugverkehr, Wolken-Schatten, Tag/Nacht-Zyklus und Regen mit
+  Pfuetzen-Reflexionen erweitert. Klick/Trefferzonen ueber iso-Rueckprojektion; neue
+  Stadt-Tests (TEST 10) + angepasste Trefferzonentests.
 ### Next Steps (ordered)
 
 1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start

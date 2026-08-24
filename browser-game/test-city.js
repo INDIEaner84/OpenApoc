@@ -126,6 +126,17 @@ eval(src + `
   }
   globalThis.__c('Iso-Stadt bleibt im Canvas', inB);
 
+  console.log('TEST 11: Atmosphaere-Renderer (Regen/Tag-Nacht/Rail/Flugverkehr)');
+  let ok11 = true;
+  try {
+    render(2000);      // Regen an
+    render(180000);    // Regen aus / andere Tageszeit
+    render(180050);
+  } catch (e) { ok11 = false; console.log('   render-Fehler: ' + e.message); }
+  globalThis.__c('Renderer laeuft mit allen Atmosphaeren-Schichten ohne Fehler', ok11);
+  globalThis.__c('Rail-Pods bleiben auf ihrer Route', (() => { const p = railPoint(railA, 0.5); return p[1] === 10.5; })());
+  globalThis.__c('Flugverkehr & Wolken definiert', fliers.length > 0 && typeof drawClouds === 'function');
+
   console.log('TEST 9: Strassennetz & Verkehr');
   globalThis.__c('Strassenzellen vorhanden', roads.length > 50);
   const car = cars[0];

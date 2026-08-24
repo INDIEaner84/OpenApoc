@@ -306,6 +306,91 @@ function stepMover(m) {
   }
 }
 
+/* ---------- Atmosphaere: Rail, Flugverkehr, Wolken, Wetter ---------- */
+const RAIL_Z = 46;
+const railA = []; for (let x = 0; x <= CW; x += 2) railA.push([x, 10.5]);
+const railB = []; for (let y = 0; y <= CH; y += 2) railB.push([17.5, y]);
+function railPoint(route, t) {
+  const f = Math.max(0, Math.min(0.999, t)) * (route.length - 1);
+  const i = Math.floor(f), fr = f - i;
+  const a = route[i], b = route[Math.min(route.length - 1, i + 1)];
+  return [a[0] + (b[0] - a[0]) * fr, a[1] + (b[1] - a[1]) * fr];
+}
+function drawRails(now) {
+  for (const route of [railA, railB]) {
+    ctx.strokeStyle = 'rgba(90,120,160,0.3)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < route.length; i += 3) {
+      const p = route[i];
+      ctx.beginPath(); ctx.moveTo(cxp(p[0], p[1]), cyp(p[0], p[1]));
+      ctx.lineTo(cxp(p[0], p[1]), cyp(p[0], p[1]) - RAIL_Z); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(140,200,255,0.35)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    route.forEach((p, i) => {
+      const X = cxp(p[0], p[1]), Y = cyp(p[0], p[1]) - RAIL_Z;
+      if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
+    });
+    ctx.stroke();
+  }
+  for (let k = 0; k < 3; k++) {
+    const route = k % 2 ? railB : railA;
+    const t = ((now / 9000) + k * 0.37) % 1;
+    const p = railPoint(route, t);
+    const X = cxp(p[0], p[1]), Y = cyp(p[0], p[1]) - RAIL_Z;
+    ctx.fillStyle = '#d7e1ee';
+    ctx.beginPath(); ctx.roundRect(X - 7, Y - 4, 14, 7, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(55,182,255,0.8)'; ctx.fillRect(X - 5, Y - 2, 10, 2);
+  }
+}
+const fliers = [];
+for (let i = 0; i < 6; i++) fliers.push({
+  sp: 0.00002 + (i % 3) * 0.000008, off: i * 0.17, alt: 70 + (i % 3) * 22,
+  horiz: i % 2 === 0, dir: i % 4 < 2 ? 1 : -1,
+});
+function drawFliers(now) {
+  for (const f of fliers) {
+    const span = f.horiz ? CW + 8 : CH + 8;
+    let p = ((now * f.sp) + f.off) % 1;
+    if (f.dir < 0) p = 1 - p;
+    const along = -4 + p * span;
+    const cross = (f.off * 53) % (f.horiz ? CH : CW);
+    const gx = f.horiz ? along : cross, gy = f.horiz ? cross : along;
+    const X = cxp(gx, gy), Y = cyp(gx, gy) - f.alt;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath(); ctx.ellipse(cxp(gx, gy), cyp(gx, gy), 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,200,255,0.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X - f.dir * (f.horiz ? 14 : 8), Y + (f.horiz ? 4 : 2)); ctx.lineTo(X, Y); ctx.stroke();
+    ctx.fillStyle = '#cfd8e3';
+    ctx.beginPath(); ctx.ellipse(X, Y, 4, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = f.dir > 0 ? '#ff5f7a' : '#4ade80';
+    ctx.beginPath(); ctx.arc(X + (f.dir > 0 ? 3 : -3), Y, 1.2, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function drawClouds(now) {
+  for (let i = 0; i < 3; i++) {
+    const sp = 0.000006 + i * 0.000003;
+    const p = ((now * sp) + i * 0.4) % 1.4 - 0.2;
+    const gx = p * (CW + 10) - 5, gy = (i * 7) % CH;
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.beginPath(); ctx.ellipse(cxp(gx, gy), cyp(gx, gy) - 10, 70, 26, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function drawWeather(now, raining) {
+  const night = 0.5 + 0.5 * Math.sin(now / 90000 + 2);
+  ctx.fillStyle = `rgba(4,8,20,${(0.08 + 0.16 * night).toFixed(3)})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (raining) {
+    ctx.strokeStyle = 'rgba(160,200,255,0.20)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 110; i++) {
+      const x = (i * 89.7 + now * 0.55) % (canvas.width + 40) - 20;
+      const y = (i * 53.3 + now * 0.9) % (canvas.height + 40) - 20;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 2, y + 7); ctx.stroke();
+    }
+  }
+  if ((now % 9000) < 80) { ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+}
+
 /* ---------- UFOs & Abfangjaeger ---------- */
 const ufos = [];
 const crashes = [];
@@ -619,6 +704,18 @@ function drawBuildingIso(b, now) {
     ctx.fillStyle = '#ff8c42';
     ctx.fillRect(A2[0] - 2, A2[1] - 12, 46 * b.damage / 100, 6);
   }
+  // Flackernde Neon-Reklame an der rechten Fassade
+  if (['markt', 'fabrik', 'buero', 'slum', 'spaceport'].includes(b.type)) {
+    const flick = Math.sin(now / 180 + b.id * 3) > -0.6 ? 1 : 0.25;
+    const col = ['#ff3aa0', '#37e0ff', '#ffd24a', '#7a3aff'][b.id % 4];
+    const sx0 = C[0] + (B[0] - C[0]) * 0.2, sy0 = C[1] + (B[1] - C[1]) * 0.2;
+    ctx.globalAlpha = flick;
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx0, sy0 - h * 0.78); ctx.lineTo(sx0, sy0 - h * 0.35); ctx.stroke();
+    ctx.fillStyle = col; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(t.icon, sx0 + 2, sy0 - h * 0.52);
+    ctx.globalAlpha = 1;
+  }
   // Label
   ctx.font = 'bold 9.5px sans-serif'; ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(215,225,238,0.9)';
@@ -630,6 +727,7 @@ function render(now) {
   cityTick(now);
   for (const m of cars) stepMover(m);
   for (const m of peds) stepMover(m);
+  const raining = Math.sin(now / 40000) > 0;   // Wetter wechselt langsam
 
   // Nachthimmel-Vignette
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -643,6 +741,14 @@ function render(now) {
       tileDiamond(x, y);
       ctx.fillStyle = '#0d1117'; ctx.fill();
       ctx.strokeStyle = 'rgba(55,182,255,0.10)'; ctx.lineWidth = 1; ctx.stroke();
+      if (raining && ((x * 31 + y * 17) % 5 === 0)) {   // Pfuetzen mit Neon-Schimmer
+        ctx.fillStyle = 'rgba(90,150,220,0.12)';
+        tileDiamond(x, y); ctx.fill();
+        ctx.fillStyle = ((x + y) % 2) ? 'rgba(255,60,160,0.09)' : 'rgba(60,200,255,0.09)';
+        ctx.beginPath();
+        ctx.ellipse(cxp(x + 0.5, y + 0.5), cyp(x + 0.5, y + 0.5), 8, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else {
       tileDiamond(x, y);
       const sh = ((x * 7 + y * 13) % 4);
@@ -667,6 +773,7 @@ function render(now) {
   // Gebaeude tiefensortiert
   const sorted = buildings.slice().sort((a, b) => (a.x0 + a.y0) - (b.x0 + b.y0));
   for (const b of sorted) drawBuildingIso(b, now);
+  drawRails(now);   // Elevated-Rail ueber den Strassen
 
   // Fahrzeuge (auf Strassen, mit Licht)
   for (const m of cars) {
@@ -771,6 +878,11 @@ function render(now) {
       ctx.beginPath(); ctx.moveTo(ip.x, ip.y); ctx.lineTo(up2.x, up2.y); ctx.stroke();
     }
   }
+
+  // Flugverkehr, Wolken-Schatten, Wetter/Nacht
+  drawFliers(now);
+  drawClouds(now);
+  drawWeather(now, raining);
 }
 
 // Ambient: Stadt-Summen
