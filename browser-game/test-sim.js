@@ -928,5 +928,24 @@ t.setFireMode('snap');
 t.setDrag(null, null);
 t.setView('iso');
 
+
+/* =========== TEST 29: Produzierte Ausruestung wirkt im Gefecht =========== */
+console.log('TEST 29: Ausruestungs-Boni aus der Stadt-Produktion');
+localStorage.setItem('apocarena.tech', '{}');   // Tech-Boni ausblenden, nur Ausruestung testen
+localStorage.setItem('apocarena.equip', JSON.stringify({ panzerung: 1, granaten: 1, lasergewehr: 1 }));
+t.startGame('ai', 9001, 'tb', 4);
+const A29 = t.state().units.filter(u => u.side === 'A');
+const base = t.UNIT_TYPES;
+check('Panzerung: +6 MaxHP auf Soldaten', A29.filter(u => u.type !== 'walker').every(u => u.maxHp === base[u.type].hp + 6));
+check('Granaten: +1 Handgranate', A29.every(u => u.grenades === base[u.type].grenades + 1));
+const sn29 = A29.find(u => u.type === 'sniper');
+check('Lasergewehr: Sniper +2 Schaden', sn29 && sn29.dmgBonus === 2);
+const as29 = A29.find(u => u.type === 'assault');
+check('Kein Impulsgewehr -> kein Assault-Bonus', as29 && !as29.dmgBonus);
+localStorage.setItem('apocarena.equip', JSON.stringify({ walker: 1 }));
+t.startGame('ai', 9002, 'tb', 4);
+check('Produzierter Kampflaeufer steht im Squad', t.state().units.some(u => u.side === 'A' && u.type === 'walker'));
+localStorage.setItem('apocarena.equip', '{}');
+
 console.log(failures === 0 ? '\nALLE TESTS BESTANDEN ✅' : `\n${failures} TEST(S) FEHLGESCHLAGEN ❌`);
 process.exit(failures === 0 ? 0 : 1);

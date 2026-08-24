@@ -270,6 +270,37 @@ function deliverEquip(tr) {
   ticker(`📦 <b>${EQUIPMENT[tr.equip].label}</b> geliefert – im Inventar: ${equipInv[tr.equip]}.`, 'good');
   updateBar();
 }
+function investIn(k) {
+  const o = ORGS[k];
+  if (!o || k === 'xforce') return;
+  const cost = 100;
+  if (pendingLoot() < cost) { ticker('⛔ Investition kostet 100 Cr – Konto zu leer.', 'bad'); return; }
+  walletAddLoot(-cost);
+  o.shares = (o.shares || 0) + 1;
+  o.rel = Math.min(100, o.rel + 4);
+  ticker(`📈 X-Com investiert in <b>${o.name}</b> (+1 Anteil, Beziehung +4).`, 'good');
+  updateBar();
+}
+function dividendPayout() {
+  let sum = 0;
+  for (const k in ORGS) {
+    const o = ORGS[k];
+    if (o.shares) sum += Math.round(o.shares * 3 * (o.rel / 100));
+  }
+  return sum;
+}
+function buyBlackMarket(key) {
+  const E = EQUIPMENT[key];
+  if (!E) return;
+  const price = Math.round(E.cost * 0.6);
+  if (pendingLoot() < price) { ticker('⛔ Schwarzmarkt-Preis ' + price + ' Cr – zu teuer.', 'bad'); return; }
+  walletAddLoot(-price);
+  equipInv[key] = (equipInv[key] || 0) + 1;
+  try { localStorage.setItem('apocarena.equip', JSON.stringify(equipInv)); } catch { }
+  infiltration = Math.min(100, infiltration + 2);
+  ticker(`🕶 Schwarzmarkt: <b>${E.label}</b> gekauft (−${price} Cr) – die Aliens merken sich das. Infiltration +2.`, 'bad');
+  updateBar();
+}
 function renderProd() {
   const el = $id('prod');
   if (!el) return;
@@ -284,11 +315,24 @@ function renderProd() {
       <button class="fm" data-eq="${k}" style="margin-left:6px">${E.cost}Cr</button></div>`;
     void active;
   }
+  if (infiltration >= 50) {
+    const bm = Object.keys(EQUIPMENT)[day % Object.keys(EQUIPMENT).length];
+    const E = EQUIPMENT[bm];
+    html += `<div class="orgline" style="margin-top:6px;border-top:1px solid rgba(176,95,208,0.4)"><span>🕶</span>
+      <span style="flex:1;margin-left:6px">Schwarzmarkt: ${E.label}<div class="dim2" style="font-size:10.5px">Syndikat-Ware, +2 Infiltration</div></span>
+      <button class="fm" data-bm="${bm}" style="margin-left:6px">${Math.round(E.cost * 0.6)}Cr</button></div>`;
+  }
   el.innerHTML = html;
 }
 document.addEventListener('click', (ev) => {
-  const b = ev.target && ev.target.closest ? ev.target.closest('[data-eq]') : null;
-  if (b) orderProduction(b.getAttribute('data-eq'));
+  const t = ev.target;
+  if (!t || !t.closest) return;
+  const b = t.closest('[data-eq]');
+  if (b) { orderProduction(b.getAttribute('data-eq')); return; }
+  const bm = t.closest('[data-bm]');
+  if (bm) { buyBlackMarket(bm.getAttribute('data-bm')); return; }
+  const inv = t.closest('[data-inv]');
+  if (inv) investIn(inv.getAttribute('data-inv'));
 });
 
 /* ---------- Missionstyp je Gebaeudefunktion (Geiselrettung etc.) ---------- */
@@ -360,6 +404,8 @@ function renderOrgs() {
     div.innerHTML = `<span style="color:${o.color}" title="${o.role || ''}">●</span> <span style="flex:1;margin-left:6px" title="${o.role || ''}">${o.name}</span>
       <span style="width:52px;text-align:right" title="Kasse">💰${Math.round(o.cash)}</span>
       <span style="width:34px;text-align:right;color:#9aa6b5" title="Flotte unterwegs">🚚${orgEnroute(k)}</span>
+      <span style="width:30px;text-align:right;color:#c9a227" title="Anteile">📈${o.shares || 0}</span>
+      <button class="fm" data-inv="${k}" style="margin-left:4px" title="Investieren (100 Cr)">+</button>
       <span class="relbar"><span class="relfill" style="width:${o.rel}%;background:${col}"></span></span>
       <span style="width:26px;text-align:right;color:${col}">${Math.round(o.rel)}</span>`;
     el.appendChild(div);
@@ -448,6 +494,13 @@ canvas.addEventListener('mousemove', (ev) => {
   const t = cityTileAt(pxX, pxY);
   hoverB = buildingAt(t.x, t.y);
   canvas.style.cursor = (hoverB || ufoAt(pxX, pxY) || crashAt(pxX, pxY)) ? 'pointer' : 'default';
+});
+const autoBtn = document.getElementById('btnAutoInt');
+if (autoBtn) autoBtn.addEventListener('click', () => {
+  autoIntercept = !autoIntercept;
+  try { localStorage.setItem('apocarena.autoIntercept', autoIntercept ? '1' : '0'); } catch { }
+  ticker(autoIntercept ? '🤖 <b>Auto-Abfangjaeger AKTIV</b> – X-Com startet automatisch bei UFO-Sichtung.' : '🤖 Auto-Abfangjaeger deaktiviert.', 'good');
+  updateBar();
 });
 
 /* ---------- Verkehr & Passanten ---------- */
@@ -619,6 +672,7 @@ const ufos = [];
 const crashes = [];
 const streetFights = [];
 let interceptor = null;
+let autoIntercept = (() => { try { return localStorage.getItem('apocarena.autoIntercept') === '1'; } catch { return false; } })();
 
 function createCrashSite(x, y) {
   crashes.push({ id: 'crash' + Date.now(), x, y, day });
@@ -642,6 +696,12 @@ function spawnUfo() {
     target, phase: 'fly', beamT: 0, hp: 3,
   });
   ticker(`🛸 <b>UFO gesichtet!</b> Kurs auf "${target.name}". Klick es an und starte den Abfangjaeger!`, 'alarm');
+  if (autoIntercept) {
+    if (!interceptor && pendingLoot() >= INTERCEPT_COST) {
+      launchInterceptor(ufos[ufos.length - 1]);
+      ticker('🤖 <b>Auto-Abfangjaeger:</b> X-Com startet automatisch!', 'good');
+    }
+  }
 }
 
 function ufoScreen(u, now) {
@@ -793,6 +853,8 @@ function cityTick(now) {
         ticker('🏴 Das Syndikat hat eine unbewachte Absturzstelle gepluendert. Infiltration +5.', 'bad');
       }
     }
+    const div = dividendPayout();
+    if (div > 0) { walletAddLoot(div); ticker(`📈 Dividenden aus Beteiligungen: <b>+${div} Cr</b>.`, 'good'); }
     const pay = econDayPayout();
     walletAddLoot(pay);
     ticker(`📅 <b>Tag ${day}:</b> Subventionen + Handelssteuern zahlen <b>+${pay} Cr</b> ins Beute-Konto (Handelsvolumen ${tradeVolumeToday} Cr).`, 'good');

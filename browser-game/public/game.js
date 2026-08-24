@@ -879,6 +879,22 @@ function makeUnits() {
 }
 
 // Erforschte Technologien auf Seite A anwenden (Laser, Panzerung, ...)
+/* Produzierte Stadt-Ausruestung wirkt im Gefecht (persistente Freischaltung) */
+function loadEquipGame() { try { return JSON.parse(localStorage.getItem('apocarena.equip') || '{}') || {}; } catch { return {}; } }
+function applyEquip() {
+  const eq = state.equip || {};
+  const owned = Object.keys(eq).filter(k => eq[k] > 0);
+  if (!owned.length) return;
+  for (const u of state.units) {
+    if (u.side !== 'A') continue;
+    if (eq.panzerung && u.type !== 'walker') { u.maxHp += 6; u.hp = u.maxHp; }
+    if (eq.granaten) u.grenades += 1;
+    if (eq.impulsgewehr && u.type === 'assault') u.dmgBonus = (u.dmgBonus || 0) + 1;
+    if (eq.lasergewehr && u.type === 'sniper') u.dmgBonus = (u.dmgBonus || 0) + 2;
+    if (eq.disruptor && u.type === 'heavy') u.dmgBonus = (u.dmgBonus || 0) + 2;
+  }
+  log(`🏭 Produzierte Ausruestung im Einsatz: <b>${owned.join(', ')}</b>.`);
+}
 function applyTech() {
   const tb2 = techBonuses(state.tech || {});
   if (!tb2.dmg && !tb2.acc && !tb2.hp) return;
@@ -2658,7 +2674,7 @@ function techBonuses(t) {
     hp: t.armor ? 10 : 0,
   };
 }
-function stabCost() { return (state.tech && state.tech.medigel) ? 4 : STAB_COST; }
+function stabCost() { return ((state.tech && state.tech.medigel) || (state.equip && state.equip.medikit)) ? 4 : STAB_COST; }
 
 function loadRoster() {
   try {
@@ -2715,6 +2731,8 @@ function startGame(m, seed, tempo, size) {
   if (m === 'ai') {
     try { state.hasWalker = localStorage.getItem('apocarena.walker') === '1'; } catch { }
   }
+  state.equip = (m === 'ai' || m === 'commando') ? loadEquipGame() : {};
+  if (state.equip.walker) state.hasWalker = true;
   state.commando = (m === 'commando');
   if (m === 'hotseat') { localSides = ['A', 'B']; mySide = null; }
   else if (m === 'ai' || m === 'commando') { localSides = ['A']; mySide = 'A'; }
@@ -2729,6 +2747,7 @@ function startGame(m, seed, tempo, size) {
   groundDirty = true;
   renderGround();
   makeUnits();
+  applyEquip();
   makeCivs(seed);
   state.civDead = 0; state.civEscaped = 0;
   introUntil = performance.now() + INTRO_MS;

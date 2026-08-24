@@ -173,6 +173,9 @@ specified with the project owner — see open questions.)*
   umgestellt (Rolle/Gueter je Org) und **Produktionsketten** gebaut: Ausruestung wird aus
   Guetern hergestellt (Zuliefer-Flotte zum Produzenten, Lieferung an Basis, Inventar persistiert).
   TEST 13 prueft Auftrag/Zulieferung/Montage/Lieferung/Rel-Gating.
+- **2026-08-24** — Abschluss-Phase (autonom): Auto-Abfangjaeger-Toggle, produzierte
+  Ausruestung wirkt im Gefecht (Boni), Investitionen/Dividenden und Syndikat-Schwarzmarkt.
+  TEST 14 (Stadt) + TEST 29 (Gefecht) decken die neuen Systeme ab.
 ### Next Steps (ordered)
 
 1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start

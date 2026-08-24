@@ -99,6 +99,13 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
   Zuliefer-Trades zum Produzenten, dann Lieferung an die Basis ins Inventar (`localStorage`).
   Produktion nur bei Beziehung >= 40; kostet Credits aus dem Beute-Konto. Neues Panel
   "Produktion & Ausruestung" mit Lagerbestand und Order-Buttons.
+- **Ausruestung wirkt im Gefecht**: produzierte Items geben Boni (Panzerung +HP, Granaten +1,
+  Laser/Disruptor/Impuls +Schaden, Medi-Kit billiger stabilisieren, Kampflaeufer im Squad).
+- **Auto-Abfangjaeger**: Toggle im Stadt-Header – startet bei UFO-Sichtung automatisch
+  (sofern Credits reichen), persistiert.
+- **Investitionen & Dividenden**: Anteile an Organisationen kaufen (+Beziehung), taegliche
+  Dividende ins Beute-Konto. **Schwarzmarkt** des Syndikats ab Infiltration 50: billige Ware,
+  aber +Infiltration.
 
 ## Tests
 

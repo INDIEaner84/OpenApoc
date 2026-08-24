@@ -179,6 +179,28 @@ eval(src + `
   globalThis.__c('Produzent mit rel<40 verweigert Produktion', trades.length === bt && pendingLoot() === bc2);
   prodOrders.length = 0; trades.length = 0;
 
+  console.log('TEST 14: Auto-Abfangjaeger, Investition, Schwarzmarkt');
+  walletAddLoot(600);
+  const l0 = pendingLoot();
+  autoIntercept = true;
+  ufos.length = 0; interceptor = null;
+  spawnUfo();
+  globalThis.__c('Auto-Abfang startet automatisch bei UFO', interceptor !== null);
+  globalThis.__c('Auto-Abfang kostet Credits', pendingLoot() === l0 - 200);
+  autoIntercept = false; interceptor = null;
+  const r0 = ORGS.megapol.rel, sh0 = ORGS.megapol.shares || 0;
+  walletAddLoot(200);
+  investIn('megapol');
+  globalThis.__c('Investition: +1 Anteil & +Beziehung', (ORGS.megapol.shares || 0) === sh0 + 1 && ORGS.megapol.rel === r0 + 4);
+  globalThis.__c('Dividende > 0 bei Anteilen', dividendPayout() > 0);
+  infiltration = 60;
+  const inf0 = infiltration, lb = pendingLoot();
+  const em0 = equipInv.medikit || 0;
+  buyBlackMarket('medikit');
+  globalThis.__c('Schwarzmarkt: Inventar+1, Credits-, Infiltration+2',
+    (equipInv.medikit || 0) === em0 + 1 && pendingLoot() < lb && infiltration === inf0 + 2);
+  infiltration = inf0;
+
   console.log('TEST 9: Strassennetz & Verkehr');
   globalThis.__c('Strassenzellen vorhanden', roads.length > 50);
   const car = cars[0];
