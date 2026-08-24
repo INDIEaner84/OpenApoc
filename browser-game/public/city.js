@@ -230,10 +230,11 @@ function showBuilding(b) {
   };
 }
 
+// Klick/Hover laufen ueber die isometrische Rueckprojektion
 canvas.addEventListener('click', (ev) => {
   const r = canvas.getBoundingClientRect();
-  const pxX = (ev.clientX - r.left) / r.width * CW * T;
-  const pxY = (ev.clientY - r.top) / r.height * CH * T;
+  const pxX = (ev.clientX - r.left) / r.width * canvas.width;
+  const pxY = (ev.clientY - r.top) / r.height * canvas.height;
   const u = ufoAt(pxX, pxY);
   if (u) { launchInterceptor(u); return; }
   const cr = crashAt(pxX, pxY);
@@ -246,16 +247,18 @@ canvas.addEventListener('click', (ev) => {
     window.location.href = '/?mission=1';
     return;
   }
-  const x = Math.floor(pxX / T), y = Math.floor(pxY / T);
-  const b = buildingAt(x, y);
+  const t = cityTileAt(pxX, pxY);
+  const b = buildingAt(t.x, t.y);
   if (b) showBuilding(b);
 });
 let hoverB = null;
 canvas.addEventListener('mousemove', (ev) => {
   const r = canvas.getBoundingClientRect();
-  const x = Math.floor((ev.clientX - r.left) / r.width * CW);
-  const y = Math.floor((ev.clientY - r.top) / r.height * CH);
-  hoverB = buildingAt(x, y);
+  const pxX = (ev.clientX - r.left) / r.width * canvas.width;
+  const pxY = (ev.clientY - r.top) / r.height * canvas.height;
+  const t = cityTileAt(pxX, pxY);
+  hoverB = buildingAt(t.x, t.y);
+  canvas.style.cursor = (hoverB || ufoAt(pxX, pxY) || crashAt(pxX, pxY)) ? 'pointer' : 'default';
 });
 
 /* ---------- Verkehr & Passanten ---------- */
@@ -313,8 +316,9 @@ function createCrashSite(x, y) {
   crashes.push({ id: 'crash' + Date.now(), x, y, day });
   ticker('🛸 <b>Absturzstelle markiert!</b> Bergungsteam entsenden, bevor das Syndikat die Truemmer pluendert (2 Tage).', 'good');
 }
+function crashScreen(c) { return { x: cxp(c.x + 0.5, c.y + 0.5), y: cyp(c.x + 0.5, c.y + 0.5) }; }
 function crashAt(pxX, pxY) {
-  return crashes.find(c => Math.hypot(c.x * T - pxX, c.y * T - pxY) < 28) || null;
+  return crashes.find(c => { const p = crashScreen(c); return Math.hypot(p.x - pxX, p.y - pxY) < 30; }) || null;
 }
 let lastUfo = performance.now() - 20000;
 const UFO_EVERY = 35000;
@@ -332,8 +336,13 @@ function spawnUfo() {
   ticker(`🛸 <b>UFO gesichtet!</b> Kurs auf "${target.name}". Klick es an und starte den Abfangjaeger!`, 'alarm');
 }
 
+function ufoScreen(u, now) {
+  const bob = Math.sin((now || performance.now()) / 300) * 3;
+  return { x: cxp(u.x, u.y), y: cyp(u.x, u.y) - 96 + bob };
+}
 function ufoAt(pxX, pxY) {
-  return ufos.find(u => Math.hypot(u.x * T - pxX, u.y * T - pxY) < 26) || null;
+  const now = performance.now();
+  return ufos.find(u => { const p = ufoScreen(u, now); return Math.hypot(p.x - pxX, p.y - pxY) < 28; }) || null;
 }
 
 function launchInterceptor(ufo) {
@@ -485,207 +494,281 @@ function cityTick(now) {
 }
 
 /* ---------- Rendering ---------- */
+/* ---------- Isometrische Projektion der Stadt ---------- */
+const ISO_C = { tw: 36, th: 18, ox: 480, oy: 132 };
+function cxp(x, y) { return ISO_C.ox + (x - y) * ISO_C.tw / 2; }
+function cyp(x, y, z) { return ISO_C.oy + (x + y) * ISO_C.th / 2 - (z || 0); }
+function cityTileAt(px, py) {
+  const rx = px - ISO_C.ox, ry = py - ISO_C.oy;
+  const a = rx / (ISO_C.tw / 2), b = ry / (ISO_C.th / 2);
+  return { x: Math.floor((a + b) / 2), y: Math.floor((b - a) / 2) };
+}
+function tileDiamond(x, y) {
+  const tX = cxp(x, y), tY = cyp(x, y);
+  ctx.beginPath();
+  ctx.moveTo(tX, tY);
+  ctx.lineTo(tX + ISO_C.tw / 2, tY + ISO_C.th / 2);
+  ctx.lineTo(tX, tY + ISO_C.th);
+  ctx.lineTo(tX - ISO_C.tw / 2, tY + ISO_C.th / 2);
+  ctx.closePath();
+}
+function hex2rgb(h) {
+  const x = h.replace('#', '');
+  return [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16)];
+}
+function shade(h, f) {           // f>0 heller, f<0 dunkler
+  const [r, g, b] = hex2rgb(h);
+  const m = (v) => Math.max(0, Math.min(255, Math.round(f > 0 ? v + (255 - v) * f : v * (1 + f))));
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+}
+const BHEIGHT = { buero: 92, spaceport: 66, krankenhaus: 48, wohnblock: 58, polizei: 44, kraftwerk: 40, fabrik: 34, markt: 30, lagerhaus: 26, slum: 20, base: 50 };
+
+function face(P, Q, Q2, P2, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(P[0], P[1]); ctx.lineTo(Q[0], Q[1]); ctx.lineTo(Q2[0], Q2[1]); ctx.lineTo(P2[0], P2[1]);
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+}
+// beleuchtete Fenster auf einer Seitenflaeche (Basis-Kante P->Q, Hoehe h)
+function faceWindows(P, Q, h, rows, cols, seed, warm) {
+  for (let r = 0; r < rows; r++) {
+    const v1 = h * (0.14 + 0.72 * r / rows), v2 = h * (0.14 + 0.72 * (r + 1) / rows);
+    for (let c = 0; c < cols; c++) {
+      const hash = (seed * 31 + r * 7 + c * 13) % 7;
+      if (hash > 3) continue;
+      const t1 = (c + 0.3) / cols, t2 = (c + 0.7) / cols;
+      const x1 = P[0] + (Q[0] - P[0]) * t1, y1 = P[1] + (Q[1] - P[1]) * t1;
+      const x2 = P[0] + (Q[0] - P[0]) * t2, y2 = P[1] + (Q[1] - P[1]) * t2;
+      ctx.fillStyle = warm && hash < 2 ? 'rgba(255,214,140,0.85)' : 'rgba(150,210,255,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(x1, y1 - v1); ctx.lineTo(x2, y2 - v1); ctx.lineTo(x2, y2 - v2); ctx.lineTo(x1, y1 - v2);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+
+function drawBuildingIso(b, now) {
+  const t = BTYPES[b.type], o = ORGS[b.org];
+  const h = BHEIGHT[b.type] || 40;
+  const x0 = b.x0, y0 = b.y0, x1 = b.x1 + 1, y1 = b.y1 + 1;
+  const A = [cxp(x0, y0), cyp(x0, y0)], B = [cxp(x1, y0), cyp(x1, y0)];
+  const C = [cxp(x1, y1), cyp(x1, y1)], D = [cxp(x0, y1), cyp(x0, y1)];
+  const up = (p) => [p[0], p[1] - h];
+  const A2 = up(A), B2 = up(B), C2 = up(C), D2 = up(D);
+  const sel = (hoverB === b || selectedB === b);
+
+  // Boden-Schatten
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(A[0], A[1] + 2); ctx.lineTo(B[0], B[1] + 2); ctx.lineTo(C[0], C[1] + 2); ctx.lineTo(D[0], D[1] + 2);
+  ctx.closePath(); ctx.fill();
+
+  // linke Flaeche (y=y1): D->C ; rechte Flaeche (x=x1): C->B  (dunkle Nacht-Fassaden)
+  face(D, C, C2, D2, shade(o.color, -0.72), 'rgba(0,0,0,0.5)');
+  face(C, B, B2, C2, shade(o.color, -0.84), 'rgba(0,0,0,0.5)');
+  const cols = Math.max(2, Math.round((b.x1 - b.x0 + 1) * 2));
+  const rows = Math.max(2, Math.round(h / 14));
+  faceWindows(D, C, h, rows, cols, b.id + 3, true);
+  faceWindows(C, B, h, rows, cols, b.id + 5, false);
+
+  // Dach
+  ctx.beginPath();
+  ctx.moveTo(A2[0], A2[1]); ctx.lineTo(B2[0], B2[1]); ctx.lineTo(C2[0], C2[1]); ctx.lineTo(D2[0], D2[1]);
+  ctx.closePath();
+  ctx.fillStyle = shade(o.color, -0.45); ctx.fill();
+  // Neon-Dachkante in Organisationsfarbe
+  ctx.strokeStyle = sel ? '#ffffff' : o.color;
+  ctx.lineWidth = sel ? 2 : 1.4; ctx.stroke();
+  ctx.strokeStyle = o.color + '33';
+  ctx.lineWidth = 4; ctx.stroke();
+
+  // Dach-Detail je Typ
+  const rcx = (A2[0] + C2[0]) / 2, rcy = (A2[1] + C2[1]) / 2;
+  if (b.type === 'base') {
+    ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.ellipse(rcx, rcy, 12, 6, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#4ade80';
+    ctx.fillText('H', rcx, rcy + 3);
+  } else if (b.type === 'buero' || b.type === 'spaceport') {
+    ctx.strokeStyle = '#cfd8e3'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(rcx, rcy); ctx.lineTo(rcx, rcy - 12); ctx.stroke();
+    const blink = Math.sin(now / 260 + b.id) > 0.3;
+    ctx.fillStyle = blink ? '#ff5f7a' : 'rgba(255,95,122,0.25)';
+    ctx.beginPath(); ctx.arc(rcx, rcy - 13, 2, 0, Math.PI * 2); ctx.fill();
+  } else if (b.type === 'kraftwerk') {
+    const g = ctx.createRadialGradient(rcx - 3, rcy - 3, 1, rcx, rcy, 9);
+    g.addColorStop(0, '#fff6c8'); g.addColorStop(1, '#c98a1a');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(rcx, rcy, 8, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Alarm-Ring + Schaden
+  if (b.alarm) {
+    const pulse = 0.4 + 0.35 * Math.sin(now / 220);
+    ctx.strokeStyle = `rgba(255,60,120,${pulse})`; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(A2[0], A2[1]); ctx.lineTo(B2[0], B2[1]); ctx.lineTo(C2[0], C2[1]); ctx.lineTo(D2[0], D2[1]);
+    ctx.closePath(); ctx.stroke();
+    ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('🛸', rcx + 20, rcy - h * 0.2);
+  }
+  if (b.damage > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(A2[0] - 2, A2[1] - 12, 46, 6);
+    ctx.fillStyle = '#ff8c42';
+    ctx.fillRect(A2[0] - 2, A2[1] - 12, 46 * b.damage / 100, 6);
+  }
+  // Label
+  ctx.font = 'bold 9.5px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(215,225,238,0.9)';
+  ctx.fillText(t.icon + ' ' + t.label, rcx, C[1] + 12);
+}
+
 function render(now) {
   requestAnimationFrame(render);
   cityTick(now);
   for (const m of cars) stepMover(m);
   for (const m of peds) stepMover(m);
 
-  // Strassen & Untergrund
+  // Nachthimmel-Vignette
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, '#05070c'); sky.addColorStop(1, '#0a0f16');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Strassen & Boden (Diamanten)
   for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
     if (isRoad(x, y)) {
-      ctx.fillStyle = '#14181e';
-      ctx.fillRect(x * T, y * T, T, T);
+      tileDiamond(x, y);
+      ctx.fillStyle = '#0d1117'; ctx.fill();
+      ctx.strokeStyle = 'rgba(55,182,255,0.10)'; ctx.lineWidth = 1; ctx.stroke();
     } else {
-      const shade = ((x * 7 + y * 13) % 5);
-      ctx.fillStyle = `rgb(${18 + shade},${21 + shade},${26 + shade})`;
-      ctx.fillRect(x * T, y * T, T, T);
+      tileDiamond(x, y);
+      const sh = ((x * 7 + y * 13) % 4);
+      ctx.fillStyle = `rgb(${14 + sh},${17 + sh},${22 + sh})`; ctx.fill();
+      // nasser Lichtschimmer auf manchen Platten
+      if (sh === 0) { ctx.fillStyle = 'rgba(120,180,255,0.03)'; ctx.fill(); }
     }
   }
-  // Fahrbahnmarkierungen
-  ctx.strokeStyle = 'rgba(55,182,255,0.18)';
-  ctx.setLineDash([6, 8]);
-  ctx.lineWidth = 1.5;
+  // Neon-Fahrspurmittellinien auf Strassen
+  ctx.strokeStyle = 'rgba(55,182,255,0.20)';
+  ctx.setLineDash([5, 7]); ctx.lineWidth = 1.4;
   for (const rx of roadXs) {
-    ctx.beginPath();
-    ctx.moveTo(rx * T + T / 2, 0);
-    ctx.lineTo(rx * T + T / 2, CH * T);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cxp(rx + 0.5, 0), cyp(rx + 0.5, 0));
+    ctx.lineTo(cxp(rx + 0.5, CH), cyp(rx + 0.5, CH)); ctx.stroke();
   }
   for (const ry of roadYs) {
-    ctx.beginPath();
-    ctx.moveTo(0, ry * T + T / 2);
-    ctx.lineTo(CW * T, ry * T + T / 2);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cxp(0, ry + 0.5), cyp(0, ry + 0.5));
+    ctx.lineTo(cxp(CW, ry + 0.5), cyp(CW, ry + 0.5)); ctx.stroke();
   }
   ctx.setLineDash([]);
 
-  // Gebaeude
-  for (const b of buildings) {
-    const t = BTYPES[b.type];
-    const o = ORGS[b.org];
-    const px0 = b.x0 * T + 3, py0 = b.y0 * T + 3;
-    const w = (b.x1 - b.x0 + 1) * T - 6, h = (b.y1 - b.y0 + 1) * T - 6;
-    const g = ctx.createLinearGradient(px0, py0, px0 + w, py0 + h);
-    g.addColorStop(0, o.color + '55');
-    g.addColorStop(1, '#10141b');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.roundRect(px0, py0, w, h, 8); ctx.fill();
-    ctx.strokeStyle = (hoverB === b || selectedB === b) ? '#ffffff' : o.color + '99';
-    ctx.lineWidth = (hoverB === b || selectedB === b) ? 2 : 1.5;
-    ctx.beginPath(); ctx.roundRect(px0, py0, w, h, 8); ctx.stroke();
-    // Fenster
-    ctx.fillStyle = 'rgba(255,235,170,0.10)';
-    for (let wy = py0 + 10; wy < py0 + h - 12; wy += 12) {
-      for (let wx = px0 + 8; wx < px0 + w - 10; wx += 14) {
-        if (((wx * 13 + wy * 7 + b.id) % 5) < 2) ctx.fillRect(wx, wy, 5, 4);
-      }
-    }
-    // Icon & Name
-    ctx.font = '20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(t.icon, px0 + w / 2, py0 + h / 2 - 2);
-    ctx.font = 'bold 9.5px sans-serif';
-    ctx.fillStyle = '#d7e1ee';
-    ctx.fillText(t.label, px0 + w / 2, py0 + h / 2 + 14);
-    // Alarm
-    if (b.alarm) {
-      const pulse = 0.4 + 0.35 * Math.sin(now / 220);
-      ctx.strokeStyle = `rgba(255,60,120,${pulse})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.roundRect(px0 - 2, py0 - 2, w + 4, h + 4, 10); ctx.stroke();
-      ctx.font = '16px sans-serif';
-      ctx.fillText('🛸', px0 + w / 2 + 24, py0 + 18);
-    }
-    if (b.type === 'base') {
-      ctx.strokeStyle = 'rgba(74,222,128,0.6)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.roundRect(px0 - 2, py0 - 2, w + 4, h + 4, 10); ctx.stroke();
-    }
-    if (b.damage > 0) {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(px0 + 4, py0 + 4, 46, 6);
-      ctx.fillStyle = '#ff8c42';
-      ctx.fillRect(px0 + 4, py0 + 4, 46 * b.damage / 100, 6);
-      ctx.font = '11px sans-serif';
-      ctx.fillText('🔥', px0 + 58, py0 + 11);
-    }
-  }
+  // Gebaeude tiefensortiert
+  const sorted = buildings.slice().sort((a, b) => (a.x0 + a.y0) - (b.x0 + b.y0));
+  for (const b of sorted) drawBuildingIso(b, now);
 
-  // Fahrzeuge
+  // Fahrzeuge (auf Strassen, mit Licht)
   for (const m of cars) {
-    const cx = m.rx * T + T / 2, cy = m.ry * T + T / 2;
+    const gx = cxp(m.rx + 0.5, m.ry + 0.5), gy = cyp(m.rx + 0.5, m.ry + 0.5);
     const horiz = m.dir[0] !== 0;
+    ctx.save();
+    ctx.translate(gx, gy);
+    ctx.rotate(horiz ? Math.PI / 6 : -Math.PI / 6);
     ctx.fillStyle = m.police ? '#3a7bd5' : ['#5b6570', '#6e5a2a', '#4a5560'][Math.floor((m.speed * 1000) % 3)];
-    ctx.beginPath();
-    ctx.roundRect(cx - (horiz ? 8 : 4), cy - (horiz ? 4 : 8), horiz ? 16 : 8, horiz ? 8 : 16, 3);
-    ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-6, -3, 12, 6, 2); ctx.fill();
     if (m.police) {
       const blink = Math.sin(performance.now() / 120) > 0;
       ctx.fillStyle = blink ? '#ff4a4a' : '#4a9bff';
-      ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      ctx.fillRect(-1.5, -1.5, 3, 3);
+    } else {
+      ctx.fillStyle = 'rgba(255,240,180,0.7)';
+      ctx.fillRect(4.5, -1.5, 2, 3);
     }
+    ctx.restore();
   }
   // Passanten
   ctx.fillStyle = '#c9be6e';
   for (const m of peds) {
     ctx.beginPath();
-    ctx.arc(m.rx * T + T / 2 + 8, m.ry * T + T / 2 + 8, 2.4, 0, Math.PI * 2);
+    ctx.arc(cxp(m.rx + 0.5, m.ry + 0.5) + 4, cyp(m.rx + 0.5, m.ry + 0.5) + 4, 2, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Strassengefechte (Muendungsfeuer-Blitze)
+  // Strassengefechte
   for (const f of streetFights) {
-    const fx2 = f.x * T + T / 2, fy2 = f.y * T + T / 2;
+    const fx2 = cxp(f.x + 0.5, f.y + 0.5), fy2 = cyp(f.x + 0.5, f.y + 0.5);
     if (Math.random() < 0.25) {
       ctx.fillStyle = 'rgba(255,230,120,0.9)';
-      const ox = (Math.random() - 0.5) * 26, oy = (Math.random() - 0.5) * 26;
-      ctx.beginPath(); ctx.arc(fx2 + ox, fy2 + oy, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,230,120,0.5)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(fx2 + ox, fy2 + oy);
-      ctx.lineTo(fx2 - ox, fy2 - oy);
-      ctx.stroke();
+      const ox = (Math.random() - 0.5) * 22, oy = (Math.random() - 0.5) * 12;
+      ctx.beginPath(); ctx.arc(fx2 + ox, fy2 + oy, 2.2, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚠️', fx2, fy2 - 14);
+    ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('⚠️', fx2, fy2 - 16);
   }
 
-  // Absturzstellen (Bergungsmissionen)
+  // Absturzstellen
   for (const c of crashes) {
-    const cx = c.x * T, cy = c.y * T;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(0.4);
+    const p = crashScreen(c);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(0.4);
     ctx.fillStyle = '#2a2136';
     ctx.beginPath(); ctx.ellipse(0, 0, 16, 7, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#5a4a76';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#5a4a76'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.ellipse(0, 0, 16, 7, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-    // Feuer & Rauch
     const fl = 0.5 + 0.4 * Math.sin(now / 130 + c.x);
     ctx.fillStyle = `rgba(255,150,50,${fl})`;
-    ctx.beginPath(); ctx.arc(cx + 6, cy - 3, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x + 6, p.y - 3, 4, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(80,80,80,0.25)';
-    ctx.beginPath(); ctx.arc(cx + 8, cy - 12 - (now / 60 % 8), 6, 0, Math.PI * 2); ctx.fill();
-    // Bergungs-Ring
+    ctx.beginPath(); ctx.arc(p.x + 8, p.y - 12 - (now / 60 % 8), 6, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = `rgba(74,222,128,${0.4 + 0.3 * Math.sin(now / 300)})`;
-    ctx.setLineDash([5, 4]);
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([5, 4]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 26, 13, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.font = 'bold 9px sans-serif';
-    ctx.fillStyle = '#4ade80';
-    ctx.textAlign = 'center';
-    ctx.fillText('BERGUNG', cx, cy + 34);
+    ctx.font = 'bold 9px sans-serif'; ctx.fillStyle = '#4ade80'; ctx.textAlign = 'center';
+    ctx.fillText('BERGUNG', p.x, p.y + 26);
   }
 
-  // UFOs
+  // UFOs (schweben hoch ueber der Stadt, mit Bodenschatten)
   for (const u of ufos) {
-    const ux = u.x * T, uy = u.y * T + Math.sin(now / 300) * 3;
-    if (u.phase === 'attack') { // Angriffsstrahl
-      const bx = u.tx * T, by = u.ty * T;
+    const p = ufoScreen(u, now);
+    const ground = cyp(u.x, u.y);
+    if (u.phase === 'attack') {
+      const bp = { x: cxp(u.tx, u.ty), y: cyp(u.tx, u.ty) };
       ctx.strokeStyle = `rgba(180,95,208,${0.4 + 0.3 * Math.sin(now / 90)})`;
       ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(ux, uy + 6); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + 6); ctx.lineTo(bp.x, bp.y); ctx.stroke();
     }
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(ux + 3, uy + 16, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
-    const g = ctx.createRadialGradient(ux - 4, uy - 4, 2, ux, uy, 18);
-    g.addColorStop(0, '#d8c9ff');
-    g.addColorStop(0.5, '#8a5fd0');
-    g.addColorStop(1, '#3a2a56');
+    ctx.beginPath(); ctx.ellipse(cxp(u.x, u.y), ground, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(p.x - 4, p.y - 4, 2, p.x, p.y, 18);
+    g.addColorStop(0, '#d8c9ff'); g.addColorStop(0.5, '#8a5fd0'); g.addColorStop(1, '#3a2a56');
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.ellipse(ux, uy, 17, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 17, 8, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(216,201,255,0.8)';
-    ctx.beginPath(); ctx.ellipse(ux, uy - 5, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill();
-    for (let k = 0; k < 4; k++) { // Positionslichter
+    ctx.beginPath(); ctx.ellipse(p.x, p.y - 5, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    for (let k = 0; k < 4; k++) {
       const la = now / 200 + k * Math.PI / 2;
       ctx.fillStyle = '#ff8dc7';
-      ctx.beginPath(); ctx.arc(ux + Math.cos(la) * 13, uy + Math.sin(la) * 5, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x + Math.cos(la) * 13, p.y + Math.sin(la) * 5, 1.6, 0, Math.PI * 2); ctx.fill();
     }
   }
 
   // Abfangjaeger
   if (interceptor) {
     const it = interceptor;
-    const ang = Math.atan2(it.ufo.y - it.y, it.ufo.x - it.x);
-    const ix = it.x * T, iy = it.y * T;
-    ctx.save();
-    ctx.translate(ix, iy);
-    ctx.rotate(ang);
+    const ip = { x: cxp(it.x, it.y), y: cyp(it.x, it.y) - 60 };
+    const up2 = ufoScreen(it.ufo, now);
+    const ang = Math.atan2(up2.y - ip.y, up2.x - ip.x);
+    ctx.save(); ctx.translate(ip.x, ip.y); ctx.rotate(ang);
     ctx.fillStyle = '#4ade80';
     ctx.beginPath();
     ctx.moveTo(10, 0); ctx.lineTo(-7, -6); ctx.lineTo(-4, 0); ctx.lineTo(-7, 6);
     ctx.closePath(); ctx.fill();
     ctx.restore();
     if (Math.hypot(it.ufo.x - it.x, it.ufo.y - it.y) <= 1.7 && Math.sin(now / 80) > 0.3) {
-      ctx.strokeStyle = 'rgba(255,230,120,0.8)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(it.ufo.x * T, it.ufo.y * T); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,230,120,0.8)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ip.x, ip.y); ctx.lineTo(up2.x, up2.y); ctx.stroke();
     }
   }
 }

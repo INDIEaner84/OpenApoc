@@ -108,8 +108,23 @@ eval(src + `
   console.log('TEST 8: Absturzstellen (Bergungsmissionen)');
   createCrashSite(12, 8);
   globalThis.__c('Absturzstelle erzeugt', crashes.length === 1 && crashes[0].x === 12);
-  globalThis.__c('Absturzstelle klickbar (Trefferzone)', crashAt(12 * 32, 8 * 32) === crashes[0]);
+  const cp = crashScreen(crashes[0]);
+  globalThis.__c('Absturzstelle klickbar (iso-Trefferzone)', crashAt(cp.x, cp.y) === crashes[0]);
+  globalThis.__c('Klick daneben trifft nicht', crashAt(cp.x + 200, cp.y + 120) === null);
   crashes.length = 0;
+
+  console.log('TEST 10: Isometrische Stadt (Projektion & Gebaeude-Treffer)');
+  const bb = buildings.find(b => b.type === 'base');
+  const bcx = (bb.x0 + bb.x1 + 1) / 2, bcy = (bb.y0 + bb.y1 + 1) / 2;
+  const t = cityTileAt(cxp(bcx, bcy), cyp(bcx, bcy));
+  globalThis.__c('Rueckprojektion trifft Basis-Tile', buildingAt(t.x, t.y) === bb);
+  globalThis.__c('Hoechere Gebaeude ragen ueber den Boden', (BHEIGHT.buero || 0) > (BHEIGHT.lagerhaus || 0));
+  let inB = true;
+  for (const b2 of buildings) {
+    const px2 = cxp(b2.x0, b2.y1 + 1), py2 = cyp(b2.x0, b2.y1 + 1) - (BHEIGHT[b2.type] || 40);
+    if (px2 < -40 || px2 > 1000 || py2 < -40 || py2 > 700) { inB = false; break; }
+  }
+  globalThis.__c('Iso-Stadt bleibt im Canvas', inB);
 
   console.log('TEST 9: Strassennetz & Verkehr');
   globalThis.__c('Strassenzellen vorhanden', roads.length > 50);

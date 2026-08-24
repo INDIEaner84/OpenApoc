@@ -2980,6 +2980,14 @@ function drawIsoSoldier(u, feetX, feetY, now) {
     isoLeg(ctx, 0, hipY + bob, step * sw, -2.4 * Math.max(0, sw), 3.2, C.limb);
     isoLeg(ctx, 0, hipY + bob, -step * sw, -2.4 * Math.max(0, -sw), 3.2, C.limb);
   }
+  // Fuss-Staub beim Gehen (sichtbare Laufanimation)
+  if (walking) {
+    const dp = (ph % (Math.PI * 2)) / (Math.PI * 2);
+    ctx.globalAlpha = 0.22 * (1 - dp);
+    ctx.fillStyle = '#98a4b3';
+    ctx.beginPath(); ctx.ellipse(-step * sw, -1, 3 + dp * 3, 1.6 + dp, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   // Rucksack (bei Rueckenansicht ueber dem Rumpf, sonst dahinter)
   const pack = () => {
