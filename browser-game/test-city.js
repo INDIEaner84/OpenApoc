@@ -137,6 +137,28 @@ eval(src + `
   globalThis.__c('Rail-Pods bleiben auf ihrer Route', (() => { const p = railPoint(railA, 0.5); return p[1] === 10.5; })());
   globalThis.__c('Flugverkehr & Wolken definiert', fliers.length > 0 && typeof drawClouds === 'function');
 
+  console.log('TEST 12: Echte Wirtschaft & Handelsflotte');
+  const consGoods = new Set(Object.values(CONS));
+  globalThis.__c('Jedes Verbrauchsgut hat einen Produzenten', [...consGoods].every(g => Object.values(PROD).includes(g)));
+  globalThis.__c('Organisationen haben Startkapital', Object.entries(ORGS).filter(([k]) => k !== 'xforce').every(([k, o]) => o.cash > 0));
+  trades.length = 0;
+  for (let i = 0; i < 12 && trades.length === 0; i++) spawnTrade();
+  globalThis.__c('Handelsauftrag erzeugt (Produzent->Konsument, Preis>0)', trades.length === 1 && trades[0].price > 0 && PROD[trades[0].from.type] === CONS[trades[0].to.type]);
+  const tr0 = trades[0];
+  const seller = ORGS[tr0.org], buyer = ORGS[tr0.buyer];
+  const cashS = seller.cash, cashB = buyer.cash;
+  globalThis.__c('Flotten-Zaehler fuer Org korrekt', orgEnroute(tr0.org) === 1);
+  tr0.t = 0.999;
+  updateTrades.last = 100000; updateTrades(100000 + 400);   // dt=400 -> Ankunft
+  globalThis.__c('Lieferung abgerechnet: Verkaeufer +Kasse, Kaeufer -Kasse', seller.cash > cashS && buyer.cash < cashB);
+  globalThis.__c('Auftrag nach Lieferung entfernt + Float-Text', trades.length === 0 && floats.length >= 1);
+  globalThis.__c('Verkaufs-/Einkaufszahlen hochgezaehlt', seller.sales >= 1 && buyer.buys >= 1);
+  tradeVolumeToday = 1000;
+  const dayPay = econDayPayout();
+  globalThis.__c('Tagespayout = Subvention + Handelssteuer (>0)', dayPay > 0);
+  tradeVolumeToday = 0;
+  floats.length = 0;
+
   console.log('TEST 9: Strassennetz & Verkehr');
   globalThis.__c('Strassenzellen vorhanden', roads.length > 50);
   const car = cars[0];

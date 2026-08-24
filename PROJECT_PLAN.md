@@ -165,6 +165,10 @@ specified with the project owner — see open questions.)*
   Elevated-Rail mit Pods, Flugverkehr, Wolken-Schatten, Tag/Nacht-Zyklus und Regen mit
   Pfuetzen-Reflexionen erweitert. Klick/Trefferzonen ueber iso-Rueckprojektion; neue
   Stadt-Tests (TEST 10) + angepasste Trefferzonentests.
+- **2026-08-24** — Wirtschafts-Phase (autonom): echte Stadt-Finanz/-Wirtschaft mit sechs
+  Guetern + dynamischen Preisen, Org-Kassen, Produktions-/Verbrauchsketten und sichtbarer
+  **Handelsflotte** (Cargo-Ships, Steuern an X-Force, Beziehungen, +Cr-Floats). Neues
+  Markt-Panel + Org-Panel (Kasse/Flotte); TEST 12 prueft Handel/Abrechnung/Preise.
 ### Next Steps (ordered)
 
 1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start

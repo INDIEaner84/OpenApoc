@@ -84,6 +84,13 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
   **Flugverkehr** mit Lichtspuren und Bodenschatten, Wolken-Schatten, **Tag/Nacht** und
   **Regen** mit Pfuetzen-Neon-Schimmer und Blitz. UFOs, Absturzstellen und Strassengefechte
   bleiben klickbar; Klick/Hover laufen ueber die iso-Rueckprojektion.
+- **Echte Stadt-Wirtschaft & Warenhandel**: sechs Gueter mit dynamischen Preisen
+  (Angebot/Nachfrage), Organisationen mit eigener Kasse, Produktions-/Verbrauchsketten
+  (Kraftwerk→Energie, Fabrik→Waren, ...). Handelsauftraege werden als **Flotte** sichtbar:
+  Cargo-Ships fliegen Produzent→Konsument, bei Lieferung fliessen Kasse, Steuern (an X-Force)
+  und Beziehungen; `+Cr`-Floats, Markt-Panel mit Preis-Trends und Organizations-Panel mit
+  💰 Kasse + 🚚 Flotte je Org. Hohe Infiltration bremst den Handel und die Steuereinnahmen.
+  Animierte Gebaeude: Fabrik-Rauch, Polizei-Radar, Klinik-Kreuz, Kraftwerk-Puls.
 
 ## Tests
 

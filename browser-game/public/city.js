@@ -123,6 +123,83 @@ function repairDay() {
   for (const b of buildings) if (b.damage > 0) b.damage = Math.max(0, b.damage - 10);
 }
 
+/* ---------- Echte Stadt-Wirtschaft & Warenhandel (Flotte) ---------- */
+// Gueter mit dynamischen Preisen (Angebot/Nachfrage)
+const GOODS = {
+  energie: { icon: '⚡', base: 12, price: 12, color: '#ffd24a' },
+  metall:  { icon: '⚙️', base: 16, price: 16, color: '#9aa6b5' },
+  waren:   { icon: '📦', base: 14, price: 14, color: '#b08534' },
+  nahrung: { icon: '🌾', base: 10, price: 10, color: '#7ec97e' },
+  daten:   { icon: '💾', base: 20, price: 20, color: '#37e0ff' },
+  medizin: { icon: '💊', base: 22, price: 22, color: '#ff7b9c' },
+};
+const PROD = { kraftwerk: 'energie', fabrik: 'waren', buero: 'daten', krankenhaus: 'medizin', lagerhaus: 'metall', markt: 'nahrung', spaceport: 'metall' };
+const CONS = { fabrik: 'metall', buero: 'energie', wohnblock: 'nahrung', markt: 'waren', krankenhaus: 'energie', polizei: 'energie', spaceport: 'metall', slum: 'nahrung', lagerhaus: 'waren' };
+const TAX_RATE = 0.15;                       // Stadtsteuer auf jeden Handel (geht an X-Force)
+for (const k in ORGS) { const o = ORGS[k]; o.cash = o.cash || (k === 'xforce' ? 0 : 240); o.sales = 0; o.buys = 0; }
+const trades = [];                            // aktive Transportauftraege (die Flotte)
+const floats = [];                            // aufsteigende +/-Cr Texte
+let tradeVolumeToday = 0;
+function buildingCenter(b) { return { x: (b.x0 + b.x1 + 1) / 2, y: (b.y0 + b.y1 + 1) / 2 }; }
+function orgEnroute(k) { return trades.filter(t => t.org === k).length; }
+function addFloat(x, y, text, color) { floats.push({ x, y, text, color, t0: performance.now() }); }
+
+function spawnTrade() {
+  if (trades.length >= 10) return;
+  const consumers = buildings.filter(b => CONS[b.type]);
+  const c = consumers[Math.floor(Math.random() * consumers.length)];
+  const g = CONS[c.type];
+  const producers = buildings.filter(b => PROD[b.type] === g && b.id !== c.id);
+  if (!producers.length) return;
+  const pr = producers[Math.floor(Math.random() * producers.length)];
+  const qty = 1 + Math.floor(Math.random() * 3);
+  const price = Math.max(3, Math.round(GOODS[g].price * qty * (0.9 + Math.random() * 0.3)));
+  trades.push({ from: pr, to: c, good: g, qty, price, t: 0, speed: 0.00025 + Math.random() * 0.00012, org: pr.org, buyer: c.org });
+}
+
+function updateTrades(now) {
+  const dt = Math.min(120, now - (updateTrades.last || now));
+  updateTrades.last = now;
+  // neue Auftraege: seltener bei hoher Infiltration (Aliens schrecken Handel ab)
+  if (!updateTrades.next || now > updateTrades.next) {
+    updateTrades.next = now + 2600 + Math.random() * 2600 + infiltration * 40;
+    if (Math.random() < 0.9) spawnTrade();
+  }
+  for (let i = trades.length - 1; i >= 0; i--) {
+    const tr = trades[i];
+    tr.t += tr.speed * dt;
+    if (tr.t >= 1) {
+      trades.splice(i, 1);
+      settleTrade(tr);
+    }
+  }
+}
+function settleTrade(tr) {
+  const seller = ORGS[tr.org], buyer = ORGS[tr.buyer];
+  const dmg = 1 - ((tr.to.damage || 0) / 200);             // beschaedigte Kaeufer zahlen weniger
+  const paid = Math.round(tr.price * dmg);
+  seller.cash += paid; buyer.cash = Math.max(0, buyer.cash - paid);
+  seller.sales++; buyer.buys++;
+  // Stadtsteuer an X-Force, skaliert mit Beziehung zum Verkaufer
+  const tax = Math.max(1, Math.round(paid * TAX_RATE * (seller.rel / 100)));
+  walletAddLoot(tax);
+  tradeVolumeToday += paid;
+  // Preisreaktion: Lieferung erhoeht Angebot -> Preis sinkt leicht
+  GOODS[tr.good].price = clampPrice(tr.good, GOODS[tr.good].price - 0.2 + Math.random() * 0.3);
+  // Handel baut Beziehungen zwischen den Organisationen auf
+  if (seller !== buyer) { seller.rel = Math.min(100, seller.rel + 0.2); buyer.rel = Math.min(100, buyer.rel + 0.2); }
+  const cc = buildingCenter(tr.to);
+  addFloat(cc.x, cc.y, `+${paid}Cr`, GOODS[tr.good].color);
+}
+function clampPrice(g, p) { return Math.max(GOODS[g].base * 0.6, Math.min(GOODS[g].base * 1.9, p)); }
+
+// Tagesabschluss: Steuern auf das Handelsvolumen + Subventionen (bestehende Logik)
+function econDayPayout() {
+  const tax = Math.round(tradeVolumeToday * 0.05 * (1 - infiltration / 150));
+  tradeVolumeToday = 0;
+  return econPayout() + tax;
+}
+
 /* ---------- Missionstyp je Gebaeudefunktion (Geiselrettung etc.) ---------- */
 function missionKindFor(b) {
   if (b.type === 'wohnblock' || b.type === 'krankenhaus' || b.type === 'markt') return 'geisel';
@@ -190,10 +267,27 @@ function renderOrgs() {
     div.className = 'orgline';
     const col = o.rel >= 60 ? '#4ade80' : o.rel >= 35 ? '#fbbf24' : '#ff5f4f';
     div.innerHTML = `<span style="color:${o.color}">●</span> <span style="flex:1;margin-left:6px">${o.name}</span>
+      <span style="width:52px;text-align:right" title="Kasse">💰${Math.round(o.cash)}</span>
+      <span style="width:34px;text-align:right;color:#9aa6b5" title="Flotte unterwegs">🚚${orgEnroute(k)}</span>
       <span class="relbar"><span class="relfill" style="width:${o.rel}%;background:${col}"></span></span>
-      <span style="width:30px;text-align:right;color:${col}">${o.rel}</span>`;
+      <span style="width:26px;text-align:right;color:${col}">${Math.round(o.rel)}</span>`;
     el.appendChild(div);
   }
+}
+function renderEcon() {
+  const el = $id('econ');
+  if (!el) return;
+  let html = '';
+  for (const [g, G] of Object.entries(GOODS)) {
+    const d = G.price - G.base;
+    const ar = d > 0.5 ? '▲' : d < -0.5 ? '▼' : '·';
+    const col = d > 0.5 ? '#ff8c42' : d < -0.5 ? '#4ade80' : '#9aa6b5';
+    html += `<div class="orgline"><span>${G.icon}</span><span style="flex:1;margin-left:6px">${g}</span>
+      <span style="color:${col}">${ar} ${G.price.toFixed(1)} Cr</span></div>`;
+  }
+  html += `<div class="orgline" style="margin-top:4px"><span>🧾</span><span style="flex:1;margin-left:6px">Handel heute</span><span>${tradeVolumeToday} Cr</span></div>`;
+  html += `<div class="orgline"><span>🚚</span><span style="flex:1;margin-left:6px">Flotte unterwegs</span><span>${trades.length}</span></div>`;
+  el.innerHTML = html;
 }
 function updateBar() {
   $id('cWallet').textContent = pendingLoot();
@@ -201,6 +295,7 @@ function updateBar() {
   $id('cAlarms').textContent = buildings.filter(b => b.alarm).length;
   $id('infilFill').style.width = infiltration + '%';
   renderOrgs();
+  renderEcon();
 }
 
 let selectedB = null;
@@ -210,7 +305,9 @@ function showBuilding(b) {
   const o = ORGS[b.org];
   let html = `<h4>${t.icon} ${b.name}</h4>
     <div class="dim2">${t.info}</div>
-    <div style="margin-top:6px">Besitzer: <b style="color:${o.color}">${o.name}</b> · Beziehung: <b>${o.rel}</b></div>
+    <div style="margin-top:6px">Besitzer: <b style="color:${o.color}">${o.name}</b> · Beziehung: <b>${Math.round(o.rel)}</b> · Kasse: <b>💰${Math.round(o.cash)}</b></div>
+    ${PROD[b.type] ? `<div>Produziert: <b>${GOODS[PROD[b.type]].icon} ${PROD[b.type]}</b> (${o.sales} Verkaeufe)</div>` : ''}
+    ${CONS[b.type] ? `<div>Benötigt: <b>${GOODS[CONS[b.type]].icon} ${CONS[b.type]}</b> (${o.buys} Einkaeufe)</div>` : ''}
     ${t.income ? `<div>Foerdert X-Force mit bis zu <b>${t.income} Cr/Tag</b> (ab Beziehung 60).</div>` : ''}`;
   if (b.type === 'base') html += `<div style="margin-top:8px"><a href="base.html" style="color:var(--accent)">🏗️ Zum Basis-Bau &rarr;</a></div>`;
   if (b.damage > 0) html += `<div style="color:#ff8c42">🔥 Gebaeudeschaden: ${b.damage}% (Wiederaufbau ~${Math.ceil(b.damage / 10)} Tage)</div>`;
@@ -374,6 +471,40 @@ function drawClouds(now) {
     const gx = p * (CW + 10) - 5, gy = (i * 7) % CH;
     ctx.fillStyle = 'rgba(0,0,0,0.16)';
     ctx.beginPath(); ctx.ellipse(cxp(gx, gy), cyp(gx, gy) - 10, 70, 26, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function tradePos(tr) {
+  const a = buildingCenter(tr.from), b = buildingCenter(tr.to);
+  const e = tr.t * tr.t * (3 - 2 * tr.t);
+  return { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e, alt: 56 + Math.sin(tr.t * Math.PI) * 14 };
+}
+function drawTrades(now) {
+  for (const tr of trades) {
+    const a = buildingCenter(tr.from), b = buildingCenter(tr.to);
+    ctx.strokeStyle = 'rgba(120,200,255,0.12)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cxp(a.x, a.y), cyp(a.x, a.y) - 40); ctx.lineTo(cxp(b.x, b.y), cyp(b.x, b.y) - 40); ctx.stroke();
+    const p = tradePos(tr);
+    const X = cxp(p.x, p.y), Y = cyp(p.x, p.y) - p.alt;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(cxp(p.x, p.y), cyp(p.x, p.y), 7, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = ORGS[tr.org].color + '66'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(X - 10, Y + 3); ctx.lineTo(X, Y); ctx.stroke();
+    ctx.fillStyle = ORGS[tr.org].color;
+    ctx.beginPath(); ctx.ellipse(X, Y, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d7e1ee';
+    ctx.beginPath(); ctx.ellipse(X - 1, Y - 2, 3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = GOODS[tr.good].color; ctx.fillRect(X + 2, Y - 3, 3, 3);
+  }
+}
+function drawFloats(now) {
+  for (let i = floats.length - 1; i >= 0; i--) {
+    const f = floats[i]; const age = now - f.t0;
+    if (age > 1400) { floats.splice(i, 1); continue; }
+    ctx.globalAlpha = 1 - age / 1400;
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, cxp(f.x, f.y), cyp(f.x, f.y) - 70 - age / 40);
+    ctx.globalAlpha = 1;
   }
 }
 function drawWeather(now, raining) {
@@ -542,6 +673,7 @@ function cityTick(now) {
   for (let i = streetFights.length - 1; i >= 0; i--) {
     if (now > streetFights[i].until) streetFights.splice(i, 1);
   }
+  updateTrades(now);
   // Organisations-Zwischenfaelle (die Stadt lebt auch ohne uns)
   if (!cityTick.feudAt || now - cityTick.feudAt > 50000) {
     cityTick.feudAt = now;
@@ -569,9 +701,9 @@ function cityTick(now) {
         ticker('🏴 Das Syndikat hat eine unbewachte Absturzstelle gepluendert. Infiltration +5.', 'bad');
       }
     }
-    const pay = econPayout();
+    const pay = econDayPayout();
     walletAddLoot(pay);
-    ticker(`📅 <b>Tag ${day}:</b> Verbuendete Organisationen zahlen <b>+${pay} Cr</b> Foerderung ins Beute-Konto.`, 'good');
+    ticker(`📅 <b>Tag ${day}:</b> Subventionen + Handelssteuern zahlen <b>+${pay} Cr</b> ins Beute-Konto (Handelsvolumen ${tradeVolumeToday} Cr).`, 'good');
     if (infiltration >= 70) ticker('⚠️ <b>Warnung:</b> Die Alien-Infiltration ist kritisch! Ignoriere keine Alarme.', 'bad');
     saveCity();
     updateBar();
@@ -688,6 +820,30 @@ function drawBuildingIso(b, now) {
     ctx.beginPath(); ctx.ellipse(rcx, rcy, 8, 4.5, 0, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Animierte Gebaeude-Details je Funktion
+  if (b.type === 'fabrik') {
+    for (let k = 0; k < 2; k++) {
+      const ph = ((now / 900) + k * 0.5) % 1;
+      ctx.fillStyle = `rgba(90,90,90,${(0.3 * (1 - ph)).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(rcx + 6 + k * 4, rcy - 6 - ph * 16, 3 + ph * 4, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (b.type === 'polizei') {
+    const a2 = now / 400;
+    ctx.strokeStyle = 'rgba(58,123,213,0.8)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(rcx, rcy); ctx.lineTo(rcx + Math.cos(a2) * 10, rcy + Math.sin(a2) * 5); ctx.stroke();
+    ctx.strokeStyle = 'rgba(58,123,213,0.3)';
+    ctx.beginPath(); ctx.ellipse(rcx, rcy, 10, 5, 0, 0, Math.PI * 2); ctx.stroke();
+  } else if (b.type === 'krankenhaus') {
+    const bl = Math.sin(now / 300) > 0 ? 1 : 0.3;
+    ctx.globalAlpha = bl; ctx.fillStyle = '#ff5f7a';
+    ctx.fillRect(rcx - 1.5, rcy - 5, 3, 10); ctx.fillRect(rcx - 5, rcy - 1.5, 10, 3);
+    ctx.globalAlpha = 1;
+  } else if (b.type === 'kraftwerk') {
+    const pu = (now / 1200) % 1;
+    ctx.strokeStyle = `rgba(255,210,74,${(0.5 * (1 - pu)).toFixed(3)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(rcx, rcy, 8 + pu * 10, 4 + pu * 5, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+
   // Alarm-Ring + Schaden
   if (b.alarm) {
     const pulse = 0.4 + 0.35 * Math.sin(now / 220);
@@ -774,6 +930,7 @@ function render(now) {
   const sorted = buildings.slice().sort((a, b) => (a.x0 + a.y0) - (b.x0 + b.y0));
   for (const b of sorted) drawBuildingIso(b, now);
   drawRails(now);   // Elevated-Rail ueber den Strassen
+  drawTrades(now);  // Handelsflotte (sichtbare Auftraege)
 
   // Fahrzeuge (auf Strassen, mit Licht)
   for (const m of cars) {
@@ -882,6 +1039,7 @@ function render(now) {
   // Flugverkehr, Wolken-Schatten, Wetter/Nacht
   drawFliers(now);
   drawClouds(now);
+  drawFloats(now);
   drawWeather(now, raining);
 }
 
