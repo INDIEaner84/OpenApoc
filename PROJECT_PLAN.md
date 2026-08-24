@@ -169,6 +169,10 @@ specified with the project owner — see open questions.)*
   Guetern + dynamischen Preisen, Org-Kassen, Produktions-/Verbrauchsketten und sichtbarer
   **Handelsflotte** (Cargo-Ships, Steuern an X-Force, Beziehungen, +Cr-Floats). Neues
   Markt-Panel + Org-Panel (Kasse/Flotte); TEST 12 prueft Handel/Abrechnung/Preise.
+- **2026-08-24** — Produktions-Phase (autonom): Organisationen auf X-COM-Apocalypse-Referenz
+  umgestellt (Rolle/Gueter je Org) und **Produktionsketten** gebaut: Ausruestung wird aus
+  Guetern hergestellt (Zuliefer-Flotte zum Produzenten, Lieferung an Basis, Inventar persistiert).
+  TEST 13 prueft Auftrag/Zulieferung/Montage/Lieferung/Rel-Gating.
 ### Next Steps (ordered)
 
 1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start

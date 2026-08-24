@@ -21,17 +21,26 @@ function mulberry32(seed) {
 }
 
 /* ---------- Organisationen ---------- */
+/* Organisationen nach X-COM-Apocalypse-Referenz (UFOpaedia):
+   Name + Rolle/Gueter wie im Original, damit Ausruestung wirklich produziert wird. */
 const ORGS = {
-  megapol:   { name: 'Megapol', color: '#3a7bd5', rel: 80 },
-  regierung: { name: 'Stadtregierung', color: '#7fd0ff', rel: 70 },
-  cyberweb:  { name: 'Cyberweb Industries', color: '#ff8c42', rel: 55 },
-  solmine:   { name: 'Solmine Corp', color: '#37b6ff', rel: 60 },
-  energon:   { name: 'Energon AG', color: '#ffd24a', rel: 60 },
-  sanatorium:{ name: 'Sanatorium-Stiftung', color: '#ff7b9c', rel: 75 },
-  habitat:   { name: 'Habitat-Verbund', color: '#7ec97e', rel: 65 },
-  gilde:     { name: 'Freihandels-Gilde', color: '#c9a227', rel: 50 },
-  syndikat:  { name: 'Syndikat der Unteren Ebenen', color: '#b05fd0', rel: 20 },
-  xforce:    { name: 'X-Force (wir)', color: '#4ade80', rel: 100 },
+  megapol:   { name: 'Megapol', color: '#3a7bd5', rel: 80, role: 'Polizei · Fahrzeuge & Waffen' },
+  marsec:    { name: 'Marsec', color: '#8fb3dd', rel: 55, role: 'Off-World-Security · Waffen & Fahrzeuge' },
+  regierung: { name: 'Regierung (Senat)', color: '#7fd0ff', rel: 70, role: 'Finanzierung von X-Com' },
+  cyberweb:  { name: 'Cyberweb Industries', color: '#ff8c42', rel: 55, role: 'Module · bessere Ingenieure' },
+  superdyn:  { name: 'Superdynamics', color: '#63d3ff', rel: 60, role: 'Luft-Triebwerke, Treibstoff, Module' },
+  generalmetro:{ name: 'General Metro', color: '#c98a5a', rel: 58, role: 'Fahrzeuge & Strassen-Triebwerke' },
+  solmine:   { name: 'Solmine Corp', color: '#37b6ff', rel: 60, role: 'Elerium / Erze (Bergbau)' },
+  transtellar:{ name: 'Transtellar', color: '#c9a227', rel: 50, role: 'Transport & Basis-Transfers' },
+  evonet:    { name: 'Evonet', color: '#ffd24a', rel: 60, role: 'Stadt-Stromversorgung' },
+  energon:   { name: 'Energen', color: '#e8c04a', rel: 58, role: 'schnelles Auftanken' },
+  nanotech:  { name: 'Nanotech', color: '#ff7b9c', rel: 70, role: 'Medi-Kits · Heilung' },
+  sanatorium:{ name: 'Sanctuary Clinic', color: '#ff9ab5', rel: 72, role: 'schnelle Wundheilung' },
+  nutrivend: { name: 'Nutrivend', color: '#7ec97e', rel: 65, role: 'Nahrung · Biochemiker' },
+  diablo:    { name: 'Diablo', color: '#ff6a3a', rel: 30, role: 'Brandgranaten · Gang' },
+  syndikat:  { name: 'Syndikat (Untere Ebenen)', color: '#b05fd0', rel: 20, role: 'Schattenwirtschaft' },
+  selforg:   { name: 'S.E.L.F.', color: '#9ad0ff', rel: 45, role: 'Androiden' },
+  xforce:    { name: 'X-Com (wir)', color: '#4ade80', rel: 100, role: 'Fahrzeuge & Agenten-Ausruestung' },
 };
 
 /* ---------- Gebaeudetypen ---------- */
@@ -39,13 +48,13 @@ const BTYPES = {
   polizei:     { label: 'Polizeiwache', icon: '🚓', org: 'megapol', income: 0,  info: 'Megapol haelt die Ordnung. Streifen patrouillieren im Viertel.' },
   fabrik:      { label: 'Fabrik', icon: '🏭', org: 'cyberweb', income: 20, info: 'Industrieproduktion. Zahlt Schutzgeld... aeh, Foerdermittel, wenn man sie beschuetzt.' },
   buero:       { label: 'Konzernzentrale', icon: '🏢', org: 'solmine', income: 25, info: 'Bueroturm der Solmine Corp. Wichtige Steuerzahler.' },
-  wohnblock:   { label: 'Wohnblock', icon: '🏘️', org: 'habitat', income: 8, info: 'Hier lebt die Bevoelkerung. Panik senkt die Stimmung – und die Zahlungen.' },
-  markt:       { label: 'Marktkomplex', icon: '🛒', org: 'gilde', income: 15, info: 'Handel mit allem, was legal ist. Meistens.' },
-  krankenhaus: { label: 'Krankenhaus', icon: '🏥', org: 'sanatorium', income: 5, info: 'Versorgt deine Verwundeten. Gute Beziehungen = schnellere Genesung.' },
-  kraftwerk:   { label: 'Fusionskraftwerk', icon: '⚡', org: 'energon', income: 18, info: 'Versorgt die Stadt. Ein Alien-Ziel erster Klasse.' },
-  slum:        { label: 'Untere Ebenen', icon: '🏚️', org: 'syndikat', income: 0, info: 'Das Syndikat regiert hier. Aliens rekrutieren gern im Schatten.' },
+  wohnblock:   { label: 'Wohnblock', icon: '🏘️', org: 'nutrivend', income: 8, info: 'Hier lebt die Bevoelkerung. Panik senkt die Stimmung – und die Zahlungen.' },
+  markt:       { label: 'Marktkomplex', icon: '🛒', org: 'transtellar', income: 15, info: 'Handel mit allem, was legal ist. Meistens.' },
+  krankenhaus: { label: 'Krankenhaus', icon: '🏥', org: 'nanotech', income: 5, info: 'Versorgt deine Verwundeten. Gute Beziehungen = schnellere Genesung.' },
+  kraftwerk:   { label: 'Fusionskraftwerk', icon: '⚡', org: 'evonet', income: 18, info: 'Versorgt die Stadt. Ein Alien-Ziel erster Klasse.' },
+  slum:        { label: 'Untere Ebenen', icon: '🏚️', org: 'diablo', income: 0, info: 'Das Syndikat regiert hier. Aliens rekrutieren gern im Schatten.' },
   spaceport:   { label: 'Raumhafen', icon: '🚀', org: 'regierung', income: 12, info: 'Tor zur Umlaufbahn – streng bewacht.' },
-  lagerhaus:   { label: 'Lagerhaus', icon: '📦', org: 'gilde', income: 10, info: 'Container, Kisten, dunkle Ecken.' },
+  lagerhaus:   { label: 'Lagerhaus', icon: '📦', org: 'transtellar', income: 10, info: 'Container, Kisten, dunkle Ecken.' },
   base:        { label: 'X-Force HQ', icon: '🛡️', org: 'xforce', income: 0, info: 'Unsere Basis. Klick: zum Basis-Bau.' },
 };
 
@@ -175,6 +184,14 @@ function updateTrades(now) {
   }
 }
 function settleTrade(tr) {
+  if (tr.equip) { deliverEquip(tr); return; }
+  if (tr.order) {
+    tr.order.got++;
+    const cc = buildingCenter(tr.to);
+    addFloat(cc.x, cc.y, '+' + GOODS[tr.good].icon, GOODS[tr.good].color);
+    if (!tr.order.shipped && tr.order.got >= tr.order.need) { tr.order.shipped = true; spawnDelivery(tr.order); }
+    return;
+  }
   const seller = ORGS[tr.org], buyer = ORGS[tr.buyer];
   const dmg = 1 - ((tr.to.damage || 0) / 200);             // beschaedigte Kaeufer zahlen weniger
   const paid = Math.round(tr.price * dmg);
@@ -199,6 +216,80 @@ function econDayPayout() {
   tradeVolumeToday = 0;
   return econPayout() + tax;
 }
+
+/* ---------- Ausruestungs-Produktion (alles muss hergestellt werden) ---------- */
+// Referenz: X-COM-Apocalypse-Ausruestung; jede Position braucht Zuliefer-Gueter,
+// die per Flotte zum Produzenten gehen, dann Lieferung an die X-Com-Basis.
+const EQUIPMENT = {
+  impulsgewehr: { label: 'M4-Impulsgewehr', icon: '🔫', cost: 60, producer: 'megapol', needs: { metall: 1, waren: 1 } },
+  panzerung:    { label: 'Schwerpanzerung', icon: '🛡️', cost: 70, producer: 'megapol', needs: { metall: 2 } },
+  lasergewehr:  { label: 'Laser-Praezisionsgewehr', icon: '🎯', cost: 90, producer: 'cyberweb', needs: { metall: 1, energie: 1, daten: 1 } },
+  disruptor:    { label: 'Disruptor-Kanone', icon: '💥', cost: 80, producer: 'marsec', needs: { metall: 1, energie: 1 } },
+  granaten:     { label: 'Brandgranaten', icon: '💣', cost: 40, producer: 'diablo', needs: { waren: 1, energie: 1 } },
+  medikit:      { label: 'Medi-Kit', icon: '💊', cost: 35, producer: 'nanotech', needs: { medizin: 1, waren: 1 } },
+  walker:       { label: 'Kampflaeufer', icon: '🤖', cost: 220, producer: 'generalmetro', needs: { metall: 3, daten: 1 } },
+  transporter:  { label: 'Transporter', icon: '🚀', cost: 150, producer: 'superdyn', needs: { metall: 2, energie: 1 } },
+};
+function loadEquip() { try { return JSON.parse(localStorage.getItem('apocarena.equip') || '{}') || {}; } catch { return {}; } }
+const equipInv = loadEquip();
+const prodOrders = [];
+function producerBuilding(orgKey) {
+  return buildings.find(b => b.org === orgKey) || buildings.find(b => b.type === 'spaceport');
+}
+function orderProduction(key) {
+  const E = EQUIPMENT[key];
+  if (!E) return;
+  const o = ORGS[E.producer];
+  if (pendingLoot() < E.cost) { ticker(`⛔ <b>${E.label}</b> kostet ${E.cost} Cr – Beute-Konto zu leer.`, 'bad'); return; }
+  if (o.rel < 40) { ticker(`⛔ ${o.name} produziert nicht fuer X-Com (Beziehung ${Math.round(o.rel)} < 40).`, 'bad'); return; }
+  walletAddLoot(-E.cost);
+  const need = Object.values(E.needs).reduce((a, b) => a + b, 0);
+  const order = { item: key, need, got: 0, shipped: false, producer: E.producer };
+  prodOrders.push(order);
+  for (const [g, q] of Object.entries(E.needs))
+    for (let i = 0; i < q; i++) spawnSupplyTrade(g, E.producer, order);
+  ticker(`🏭 <b>${E.label}</b> in Auftrag gegeben (−${E.cost} Cr) – ${need} Zulieferungen unterwegs zu ${o.name}.`, 'good');
+  updateBar();
+}
+function spawnSupplyTrade(g, orgKey, order) {
+  const src = buildings.find(b => PROD[b.type] === g);
+  const dst = producerBuilding(orgKey);
+  if (!src || !dst) return;
+  trades.push({ from: src, to: dst, good: g, qty: 1, price: 0, t: 0, speed: 0.0004, org: src.org, buyer: orgKey, order });
+}
+function spawnDelivery(order) {
+  const base = buildings.find(b => b.type === 'base');
+  const src = producerBuilding(order.producer);
+  trades.push({ from: src, to: base, good: null, qty: 1, price: 0, t: 0, speed: 0.0003, org: order.producer, buyer: 'xforce', equip: order.item });
+}
+function deliverEquip(tr) {
+  equipInv[tr.equip] = (equipInv[tr.equip] || 0) + 1;
+  try { localStorage.setItem('apocarena.equip', JSON.stringify(equipInv)); } catch { }
+  const bc = buildingCenter(tr.to);
+  addFloat(bc.x, bc.y, '+' + EQUIPMENT[tr.equip].icon, '#4ade80');
+  ticker(`📦 <b>${EQUIPMENT[tr.equip].label}</b> geliefert – im Inventar: ${equipInv[tr.equip]}.`, 'good');
+  updateBar();
+}
+function renderProd() {
+  const el = $id('prod');
+  if (!el) return;
+  let html = '';
+  for (const [k, E] of Object.entries(EQUIPMENT)) {
+    const o = ORGS[E.producer];
+    const need = Object.entries(E.needs).map(([g, q]) => `${GOODS[g].icon}×${q}`).join(' ');
+    const active = prodOrders.filter(o2 => o2.item === k && !o2.shipped).length;
+    html += `<div class="orgline"><span>${E.icon}</span>
+      <span style="flex:1;margin-left:6px">${E.label}<div class="dim2" style="font-size:10.5px">${need} · ${o.name}</div></span>
+      <span style="width:26px;text-align:right" title="Lager">×${equipInv[k] || 0}</span>
+      <button class="fm" data-eq="${k}" style="margin-left:6px">${E.cost}Cr</button></div>`;
+    void active;
+  }
+  el.innerHTML = html;
+}
+document.addEventListener('click', (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-eq]') : null;
+  if (b) orderProduction(b.getAttribute('data-eq'));
+});
 
 /* ---------- Missionstyp je Gebaeudefunktion (Geiselrettung etc.) ---------- */
 function missionKindFor(b) {
@@ -266,7 +357,7 @@ function renderOrgs() {
     const div = document.createElement('div');
     div.className = 'orgline';
     const col = o.rel >= 60 ? '#4ade80' : o.rel >= 35 ? '#fbbf24' : '#ff5f4f';
-    div.innerHTML = `<span style="color:${o.color}">●</span> <span style="flex:1;margin-left:6px">${o.name}</span>
+    div.innerHTML = `<span style="color:${o.color}" title="${o.role || ''}">●</span> <span style="flex:1;margin-left:6px" title="${o.role || ''}">${o.name}</span>
       <span style="width:52px;text-align:right" title="Kasse">💰${Math.round(o.cash)}</span>
       <span style="width:34px;text-align:right;color:#9aa6b5" title="Flotte unterwegs">🚚${orgEnroute(k)}</span>
       <span class="relbar"><span class="relfill" style="width:${o.rel}%;background:${col}"></span></span>
@@ -296,6 +387,7 @@ function updateBar() {
   $id('infilFill').style.width = infiltration + '%';
   renderOrgs();
   renderEcon();
+  renderProd();
 }
 
 let selectedB = null;

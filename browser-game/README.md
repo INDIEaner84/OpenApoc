@@ -91,6 +91,14 @@ npm start        # laeuft auf http://localhost:3000 (PORT-Umgebungsvariable moeg
   und Beziehungen; `+Cr`-Floats, Markt-Panel mit Preis-Trends und Organizations-Panel mit
   💰 Kasse + 🚚 Flotte je Org. Hohe Infiltration bremst den Handel und die Steuereinnahmen.
   Animierte Gebaeude: Fabrik-Rauch, Polizei-Radar, Klinik-Kreuz, Kraftwerk-Puls.
+- **Organisationen nach X-COM-Apocalypse-Referenz** (Megapol, Marsec, Cyberweb, Superdynamics,
+  General Metro, Solmine, Transtellar, Evonet/Energen, Nanotech, Sanctuary, Nutrivend, Diablo,
+  S.E.L.F. ...) mit Rolle/Guetern wie im Original.
+- **Produktionsketten**: Ausruestung (Impuls-/Lasergewehr, Disruptor, Panzerung, Granaten,
+  Medi-Kit, Kampflaeufer, Transporter) muss **hergestellt** werden – Rezept aus Guetern,
+  Zuliefer-Trades zum Produzenten, dann Lieferung an die Basis ins Inventar (`localStorage`).
+  Produktion nur bei Beziehung >= 40; kostet Credits aus dem Beute-Konto. Neues Panel
+  "Produktion & Ausruestung" mit Lagerbestand und Order-Buttons.
 
 ## Tests
 
