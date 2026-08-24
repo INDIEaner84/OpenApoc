@@ -4,13 +4,16 @@
 const fs = require('fs');
 
 /* ---- DOM-Stubs ---- */
+const drawCalls = { drawImage: 0, ellipse: 0, arc: 0, fill: 0, stroke: 0, fillText: 0, roundRect: 0 };
+function resetDrawCalls() { for (const k of Object.keys(drawCalls)) drawCalls[k] = 0; }
 const ctxStub = new Proxy({}, {
   get: (t, p) => {
     if (p === 'measureText') return () => ({ width: 10 });
     if (p === 'createRadialGradient' || p === 'createLinearGradient' || p === 'createPattern')
       return () => ({ addColorStop() { } });
+    if (p === '__calls') return drawCalls;
     if (p in t) return t[p];
-    return () => { };
+    return () => { if (typeof p === 'string' && drawCalls[p] !== undefined) drawCalls[p]++; };
   },
   set: (t, p, v) => { t[p] = v; return true; },
 });
@@ -75,6 +78,15 @@ const exportSnippet = `
   startCityMission, startBaseDefense,
   scareCivs, buildCivCmd, escapeUnit, tryFleeTB, civAt, killUnit,
   orderSquadMove, computeSlots, orderAttack, FORMATIONS,
+  // --- Ansicht / Level-Design / Animation ---
+  VIEW, isIso, sx, sy, screenToTile, tileHpx, setView, toggleView, squash, dirSector,
+  archetypeFor, ARCHETYPES, ARCH_ORDER, mapPlayable, mirrorHalf, LOWWALL, WALL, CRATE, FLOOR,
+  coverTiles, coverPenalty, coverKind, LOS: losClear, BLOCKED: blocked,
+  updateAnim, updateCivAnim, render, effects, setHover: (h) => { hoverTile = h; },
+  setDrag: (a, b) => { dragStart = a; dragCur = b; isDragging = !!b; },
+  setFireMode: (f) => { fireMode = f; }, setIntro: (ms) => { introUntil = performance.now() + ms; },
+  decals, addDecal, renderGround, makeTextures, theme, THEMES, isoSpriteFor,
+  setArch: (a) => { state.arch = a; }, spawnUnit,
 };`;
 eval(src + exportSnippet);
 const t = globalThis.__test;
@@ -651,6 +663,289 @@ raiders.forEach(u => { if (u.alive) t.killUnit(u); });
 const dres = JSON.parse(localStorage.getItem('apocarena.defenseresult'));
 check('Verteidigungs-Ergebnis fuer die Basis geschrieben',
   dst.over === true && dres && dres.won === true && dres.wave === 3);
+
+
+/* =========== TEST 23: Isometrische Projektion & Picking =========== */
+console.log('TEST 23: Isometrische Ansicht (Projektion, Hoehe, Picking)');
+t.startGame('hotseat', 20260824, 'tb');
+t.setView('iso');
+check('Ansicht ist isometrisch', t.isIso() === true);
+const st23 = t.state();
+// Projektion bleibt im Canvas (960x640)
+let inBounds = true, minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+for (let y = 0; y < 16 && inBounds; y++) for (let x = 0; x < 24; x++) {
+  const a = t.sx(x, y), b = t.sy(x, y);
+  minX = Math.min(minX, a - 24); maxX = Math.max(maxX, a + 24);
+  minY = Math.min(minY, b - 30); maxY = Math.max(maxY, b + 24);
+  if (a - 24 < 0 || a + 24 > 960 || b - 30 < 0 || b + 24 > 640) { inBounds = false; break; }
+}
+check('Iso-Projektion fuellt den Canvas aus (' + Math.round(maxX - minX) + 'x' + Math.round(maxY - minY) + ')', inBounds);
+// Hoehe-Picking: Mittelpunkt der Deckflaeche jedes Tiles
+let picksOk = 0, picksTotal = 0, wrongWall = 0, wrongFloor = 0, nullPick = 0;
+for (let y = 0; y < 16; y++) for (let x = 0; x < 24; x++) {
+  const tile = st23.map[y][x];
+  const z = tile === 1 ? 1 : tile === 2 ? 0.55 : tile === 3 ? 0.45 : 0;
+  const px2 = t.sx(x, y), py2 = t.sy(x, y, z) + 12;   // Zentrum der Deckflaeche
+  const hit = t.screenToTile(px2, py2);
+  picksTotal++;
+  if (!hit) { nullPick++; continue; }
+  if (hit.x === x && hit.y === y) picksOk++;
+  else if (tile === 1) wrongWall++;
+  else if (st23.map[y + 1] && st23.map[y + 1][x + 1] !== 0) { /* korrekt verdeckt: Objekt steht davor */ }
+  else wrongFloor++;
+}
+check('Picking liefert immer ein Tile (' + picksTotal + ' Felder, 0 daneben)', nullPick === 0);
+check('Jede Wand wird ueber ihre Deckflaeche getroffen', wrongWall === 0);
+check('Freie Felder werden getroffen (ausser hinter Waenden)', wrongFloor === 0);
+check('Rundweg: ' + picksOk + '/' + picksTotal + ' Felder exakt', picksOk > picksTotal * 0.8);
+// Hoehen-Picking: Klick auf die Front einer Wand waehlt die Wand, nicht den Boden dahinter
+let wallTile = null;
+for (let y = 0; y < 15 && !wallTile; y++) for (let x = 0; x < 23; x++) {
+  if (st23.map[y][x] === 1 && st23.map[y + 1][x + 1] === 0) { wallTile = { x, y }; break; }
+}
+if (wallTile) {
+  const frontHit = t.screenToTile(t.sx(wallTile.x, wallTile.y), t.sy(wallTile.x, wallTile.y, 1) + 20);
+  check('Klick auf die Wandfront trifft die Wand (Hoehe zaehlt)',
+    frontHit && frontHit.x === wallTile.x && frontHit.y === wallTile.y);
+}
+// Draufsicht-Picking bleibt exakt
+t.setView('top');
+const topHit = t.screenToTile(45, 85);
+check('Draufsicht-Picking: (45,85) -> Tile (1,2)', topHit && topHit.x === 1 && topHit.y === 2);
+t.setView('iso');
+check('Ansichtswechsel wird gespeichert', localStorage.getItem('apocarena.view') === 'iso');
+t.toggleView();
+check('V-Taste schaltet zurueck auf Draufsicht', t.isIso() === false);
+t.setView('iso');
+
+/* =========== TEST 24: Level-Design – vier Karten-Archetypen =========== */
+console.log('TEST 24: Level-Design (Karten-Archetypen, Symmetrie, Begehbarkeit)');
+const seenArch = new Set();
+let deterministic = true, symmetric = true, playable = true, lowFound = 0, reachableAll = true;
+for (let i = 0; i < 24; i++) {
+  const seed = 1000 + i * 7717;
+  const arch = t.archetypeFor(seed);
+  seenArch.add(arch);
+  if (t.archetypeFor(seed) !== arch) deterministic = false;
+  const m = t.generateMap(seed);
+  const m2 = t.generateMap(seed);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 24; x++) {
+    if (m[y][x] !== m2[y][x]) deterministic = false;
+    if (m[y][x] !== m[16 - 1 - y + 0] && false) { }
+    if (m[y][x] !== m[y][23 - x]) symmetric = false;
+  }
+  if (!t.mapPlayable(m)) playable = false;
+  let low = 0;
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 24; x++) if (m[y][x] === 3) low++;
+  if (low > 0) lowFound++;
+  // beide Spawn-Ecken muessen per Pfad verbunden sein
+  t.startGame('hotseat', seed, 'tb');
+  const ua = t.unitById('A0'), ub = t.unitById('B0');
+  // Ziel steht selbst auf dem Feld -> dessen Einheit als Hindernis ausblenden
+  if (!t.findPath(ua, ub.x, ub.y, 400, new Set([ub.id]))) reachableAll = false;
+}
+check('Archetyp ist deterministisch, Karte ebenso', deterministic);
+check('Karten sind gespiegelt (faire Spawns)', symmetric);
+check('Alle 24 Karten spielbar (verbunden + genug Deckung)', playable);
+check('Beide Spawn-Punkte immer erreichbar', reachableAll);
+check('Vier Archetypen im Umlauf: ' + [...seenArch].sort().join(', '), seenArch.size === 4);
+check('Bruestungen (huefthohe Deckung) in ' + lowFound + '/24 Karten', lowFound >= 12);
+
+/* =========== TEST 25: Huefthohe Deckung & Haltung =========== */
+console.log('TEST 25: Bruestung – Deckung je Haltung, Sicht bleibt frei');
+t.startGame('hotseat', 4242, 'tb');
+const s25 = t.state();
+const sh = t.unitById('A0'), tg = t.unitById('B0');
+sh.x = 4; sh.y = 5; sh.rx = 4; sh.ry = 5; sh.stance = 'stand';
+tg.x = 6; tg.y = 5; tg.rx = 6; tg.ry = 5; tg.stance = 'stand';
+for (let yy = 3; yy <= 7; yy++) for (let xx = 3; xx <= 7; xx++) s25.map[yy][xx] = 0;
+s25.map[5][5] = 3;                                          // Bruestung genau dazwischen
+// uebrige Einheiten aus dem Testgebiet holen, damit sie den Pfad nicht blockieren
+for (const o of s25.units) if (o !== sh && o !== tg) { o.x = o.side === 'A' ? 1 : 22; o.y = 14; o.rx = o.x; o.ry = o.y; }
+t.refreshVisibility();
+check('Sichtlinie ueber die Bruestung bleibt frei', t.LOS(4, 5, 6, 5) === true);
+check('Bruestung als Deckung erkannt', t.coverKind(sh, tg) === 'low');
+check('Stehend: halbe Deckung (-12 %)', t.coverPenalty(sh, tg) === 12);
+tg.stance = 'kneel';
+check('Kniend: volle Deckung (-20 %)', t.coverPenalty(sh, tg) === 20);
+tg.stance = 'prone';
+check('Liegend: volle Deckung (-20 %)', t.coverPenalty(sh, tg) === 20);
+tg.stance = 'stand';
+const noCover = t.hitChance(sh, tg, 'snap');
+s25.map[5][5] = 1;                                          // gleiche Stelle als Wand
+const withWall = t.hitChance(sh, tg, 'snap');
+check('Wand deckt besser als Bruestung (' + withWall + ' % vs ' + noCover + ' %)', withWall < noCover);
+s25.map[5][5] = 3;
+check('Bruestung blockiert die Bewegung', t.BLOCKED(5, 5) === true);
+const others = new Set(s25.units.filter(o => o !== sh).map(o => o.id));
+const pathAround = t.findPath(sh, 6, 5, 400, others);
+check('Pfad fuehrt um die Bruestung herum', !!pathAround && !pathAround.some(p => p.x === 5 && p.y === 5));
+check('Pfad kommt am Ziel an', !!pathAround && pathAround[pathAround.length - 1].x === 6);
+// Granate raeumt die Bruestung weg
+let gcmd25 = null;
+for (let i = 0; i < 40 && !gcmd25; i++) {
+  const c = t.planGrenadeCmd(sh, 5, 5);
+  if (c.lows && c.lows.some(([x, y]) => x === 5 && y === 5)) gcmd25 = c;
+}
+check('Granate erfasst Bruestungen', !!gcmd25);
+if (gcmd25) {
+  t.issueCommand(gcmd25);
+  check('Bruestung weggesprengt', s25.map[5][5] === 0);
+}
+
+/* =========== TEST 26: Bewegungs-Animationen =========== */
+console.log('TEST 26: Animationen (stehen, gehen, knien, robben, Rolle, Rueckstoss)');
+t.startGame('ai', 31337, 'rt', 4);
+const u26 = t.unitById('A0');
+let now26 = 1000;
+const step = (u, dx, dy, t2) => { u.rx += dx; u.ry += dy; t.updateAnim(u, t2); };
+u26.rx = u26.x; u26.ry = u26.y; u26.moveQueue = []; u26.stance = 'stand'; u26.down = false;
+u26.rollUntil = 0;
+check('Stehen im Stillstand -> idle', t.updateAnim(u26, now26) === 'idle');
+const phaseIdle = u26.phase;
+t.updateAnim(u26, now26 + 16);
+check('Idle atmet (Phase laeuft weiter)', u26.phase > phaseIdle);
+step(u26, 0.1, 0, now26 + 32);
+check('Bewegung im Stehen -> walk', u26.animName === 'walk');
+const phaseWalk = u26.phase;
+step(u26, 0.1, 0, now26 + 48);
+check('Gehzyklus laeuft weiter (keine Phase-Zuruecksetzung)', u26.phase > phaseWalk);
+u26.stance = 'kneel';
+step(u26, 0, 0, now26 + 64);
+check('Kniend + Stillstand -> kneelIdle', u26.animName === 'kneelIdle');
+step(u26, 0.05, 0, now26 + 80);
+check('Kniend + Bewegung -> crouchWalk', u26.animName === 'crouchWalk');
+u26.stance = 'prone';
+step(u26, 0.02, 0, now26 + 96);
+check('Liegend + Bewegung -> crawl (robben)', u26.animName === 'crawl');
+step(u26, 0, 0, now26 + 112);
+check('Liegend + Stillstand -> proneIdle', u26.animName === 'proneIdle');
+u26.rollUntil = now26 + 400; u26.rollDur = 330; u26.stance = 'stand';
+step(u26, 0.1, 0, now26 + 128);
+check('Kampfrolle -> roll', u26.animName === 'roll');
+u26.rollUntil = 0;
+u26.down = true;
+check('Niedergestreckt -> down', t.updateAnim(u26, now26 + 144) === 'down');
+u26.down = false;
+// Rueckstoss: nach einem Schuss ist der Zeitstempel gesetzt
+const sh26 = t.unitById('A1');
+const en26 = t.unitById('B0');
+sh26.shotAt = -99999;
+t.issueCommand(t.planShootCmd(sh26, en26, 'snap'));
+check('Schuss setzt Rueckstoss-Zeitstempel', sh26.shotAt > 0);
+// 8-Wege-Richtung fuer die Iso-Sprites (Sektoren liegen im Bildschirmraum:
+// +x zeigt im 2:1-Raster nach rechts unten, +y nach links unten)
+check('Richtung +x/+y (im Raster) zeigt am Bildschirm nach Sueden', t.dirSector(1, 1) === 2);
+check('Richtung +x/-y zeigt nach Osten', t.dirSector(1, -1) === 0);
+check('Richtung -x/-y zeigt nach Norden', t.dirSector(-1, -1) === 6);
+check('Richtung -x/+y zeigt nach Westen', t.dirSector(-1, 1) === 4);
+check('Richtung +x zeigt nach Suedosten', t.dirSector(1, 0) === 1);
+check('Richtung +y zeigt nach Suedwesten', t.dirSector(0, 1) === 3);
+// Zivilisten haben denselben Zyklus
+const civ26 = { x: 3, y: 3, rx: 3, ry: 3, panic: 0 };
+t.updateCivAnim(civ26, 1);
+civ26.rx += 0.1;
+t.updateCivAnim(civ26, 2);
+check('Zivilist bekommt Gehzyklus', civ26.moving === true && civ26.phase > 0);
+
+/* =========== TEST 27: Tilesets, Decals, Ansichtswechsel =========== */
+console.log('TEST 27: Tilesets pro Archetyp & persistente Blutspuren');
+t.startGame('hotseat', 777, 'tb');
+const arch27 = t.state().arch;
+check('Karte hat einen Archetyp: ' + arch27, !!t.ARCHETYPES[arch27]);
+check('Tileset passt zum Archetyp (' + t.ARCHETYPES[arch27].theme + ')',
+  t.theme() === t.THEMES[t.ARCHETYPES[arch27].theme]);
+t.setArch('nest');
+t.makeTextures(t.state().seed);
+check('Tilesetwechsel auf Aliennest moeglich', t.theme() === t.THEMES.organic);
+t.setArch(arch27);
+t.makeTextures(t.state().seed);
+check('Iso-Sprites fuer Wand/Kiste/Bruestung gebacken',
+  !!t.isoSpriteFor(1) && !!t.isoSpriteFor(2) && !!t.isoSpriteFor(3) && t.isoSpriteFor(0) === null);
+check('Wand-Sprite hoeher als Bruestungs-Sprite',
+  t.isoSpriteFor(1).hpx > t.isoSpriteFor(3).hpx);
+t.addDecal(5, 5, 'rgba(120,26,18,0.8)', false);
+check('Blutspur abgelegt', t.decals.length === 1 && t.decals[0].dots.length > 0);
+t.renderGround();
+t.setView('top');
+t.renderGround();
+check('Blutspuren ueberstehen Ansichtswechsel + Neubauchung', t.decals.length === 1);
+t.setView('iso');
+t.addDecal(6, 6, 'rgba(12,12,12,0.85)', true);
+check('Brandspur kommt dazu', t.decals.length === 2);
+t.startGame('hotseat', 778, 'tb');
+check('Neue Karte startet ohne alte Spuren', t.decals.length === 0);
+
+
+/* =========== TEST 28: Renderer laeuft in beiden Ansichten =========== */
+console.log('TEST 28: Renderer (Iso + Draufsicht) zeichnen ohne Fehler');
+function renderScene(label) {
+  resetDrawCalls();
+  let err = null;
+  try {
+    for (let f = 0; f < 3; f++) t.render(performance.now() + f * 16);
+  } catch (e) { err = e; }
+  check(label + ': Renderer ohne Absturz' + (err ? ' – ' + err.message : ''), !err);
+  check(label + ': Boden/Sprites geblitted (' + drawCalls.drawImage + ')', drawCalls.drawImage > 20);
+  check(label + ': Figuren gezeichnet (' + drawCalls.ellipse + ' Ellipsen, ' + drawCalls.arc + ' Kreise)',
+    drawCalls.ellipse > 4 && drawCalls.arc > 4);
+  return err;
+}
+t.startGame('ai', 555, 'rt', 4);
+t.setIntro(2000);                                  // Dropship-Intro aktiv
+const s28 = t.state();
+s28.units.forEach((u, i) => {                      // alle Posen gleichzeitig aufs Feld
+  u.stance = ['stand', 'kneel', 'prone', 'stand', 'kneel', 'prone', 'stand', 'kneel'][i % 8];
+});
+s28.units[0].down = true;                          // Verwundeter
+s28.units[1].moveQueue = [{ x: s28.units[1].x + 1, y: s28.units[1].y }];
+s28.units[2].rollUntil = performance.now() + 300;  // Kampfrolle
+t.setSelection(s28.units.filter(u => u.side === 'A'));
+t.setHover({ x: 12, y: 8 });
+t.setDrag({ px: 10, py: 10 }, { px: 300, py: 300 });
+// Effekte aller Arten erzeugen (Schuss, Granate, Tod)
+const a28 = t.unitById('A0'), b28 = t.unitById('B0');
+a28.down = false; a28.stance = 'stand';
+t.issueCommand(t.planShootCmd(a28, b28, 'snap'));
+t.issueCommand(t.planGrenadeCmd(a28, b28.x, b28.y));
+t.issueCommand(t.planGrenadeCmd(a28, b28.x, b28.y));
+check('Effekte liegen an (Schuss/Granate/Leiche)', t.effects.length >= 3);
+t.setView('iso');
+renderScene('Iso-Ansicht');
+const isoBlits = drawCalls.drawImage;
+const isoRound = drawCalls.roundRect;
+t.setView('top');
+renderScene('Draufsicht');
+check('Beide Ansichten zeichnen das Gelaende (Iso ' + isoBlits + ' / Top ' + drawCalls.drawImage + ' Blits)',
+  isoBlits > 20 && drawCalls.drawImage > 20);
+check('Iso-Soldaten mit Rucksack/Waffendetails gezeichnet (roundRect: Iso ' + isoRound + ' / Top ' + drawCalls.roundRect + ')',
+  isoRound > 4);
+// Granaten-Vorschau + Pfadvorschau muessen ebenfalls rendern
+t.setFireMode('nade');
+t.setView('iso');
+renderScene('Iso mit Granaten-Zielvorschau');
+t.setFireMode('snap');
+t.setDrag(null, null);
+t.setView('iso');
+
+
+/* =========== TEST 29: Produzierte Ausruestung wirkt im Gefecht =========== */
+console.log('TEST 29: Ausruestungs-Boni aus der Stadt-Produktion');
+localStorage.setItem('apocarena.tech', '{}');   // Tech-Boni ausblenden, nur Ausruestung testen
+localStorage.setItem('apocarena.equip', JSON.stringify({ panzerung: 1, granaten: 1, lasergewehr: 1 }));
+t.startGame('ai', 9001, 'tb', 4);
+const A29 = t.state().units.filter(u => u.side === 'A');
+const base = t.UNIT_TYPES;
+check('Panzerung: +6 MaxHP auf Soldaten', A29.filter(u => u.type !== 'walker').every(u => u.maxHp === base[u.type].hp + 6));
+check('Granaten: +1 Handgranate', A29.every(u => u.grenades === base[u.type].grenades + 1));
+const sn29 = A29.find(u => u.type === 'sniper');
+check('Lasergewehr: Sniper +2 Schaden', sn29 && sn29.dmgBonus === 2);
+const as29 = A29.find(u => u.type === 'assault');
+check('Kein Impulsgewehr -> kein Assault-Bonus', as29 && !as29.dmgBonus);
+localStorage.setItem('apocarena.equip', JSON.stringify({ walker: 1 }));
+t.startGame('ai', 9002, 'tb', 4);
+check('Produzierter Kampflaeufer steht im Squad', t.state().units.some(u => u.side === 'A' && u.type === 'walker'));
+localStorage.setItem('apocarena.equip', '{}');
 
 console.log(failures === 0 ? '\nALLE TESTS BESTANDEN ✅' : `\n${failures} TEST(S) FEHLGESCHLAGEN ❌`);
 process.exit(failures === 0 ? 0 : 1);

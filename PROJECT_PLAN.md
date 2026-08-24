@@ -149,6 +149,33 @@ specified with the project owner — see open questions.)*
   (229 targets), 7/10 tests pass (3 need CD data). Architecture analysis written:
   [docs/ARCHITECTURE_ANALYSIS.md](docs/ARCHITECTURE_ANALYSIS.md).
 
+- **2026-08-24** — Browser-Taktikspiel (`browser-game/`) stark ausgebaut:
+  **isometrische Ansicht** (umschaltbar mit `V`, wird pro Client in
+  `localStorage` gemerkt) mit Höhen-Picking und Tiefensortierung; **Level-Design**
+  mit vier deterministischen Karten-Archetypen (Bunkerhof, Stadtstrasse,
+  Lagerhalle, Aliennest), je eigenem Tileset und neuer **huefthoher Bruestung**
+  (`LOWWALL`, blockt nur Bewegung, Deckung haengt von der Haltung ab);
+  **Animations-Zustandsautomat** (idle/walk/crouchWalk/crawl/proneIdle/down/roll)
+  mit Gehzyklus, Rueckstoss und Muendungsfeuer in beiden Ansichten. Tests 23–28
+  decken Projektion, Archetypen, Deckung, Animation und den Renderer ab
+  (headless-Renderer zeichnet nachweislich beide Ansichten).
+
+- **2026-08-24** — Stadt-Atmosphaere-Phase (autonom): Stadtkarte auf isometrische
+  Nacht-Neon-Optik umgestellt (extrudierte Gebaeude, Neon-Reklame, Dachdetails) und um
+  Elevated-Rail mit Pods, Flugverkehr, Wolken-Schatten, Tag/Nacht-Zyklus und Regen mit
+  Pfuetzen-Reflexionen erweitert. Klick/Trefferzonen ueber iso-Rueckprojektion; neue
+  Stadt-Tests (TEST 10) + angepasste Trefferzonentests.
+- **2026-08-24** — Wirtschafts-Phase (autonom): echte Stadt-Finanz/-Wirtschaft mit sechs
+  Guetern + dynamischen Preisen, Org-Kassen, Produktions-/Verbrauchsketten und sichtbarer
+  **Handelsflotte** (Cargo-Ships, Steuern an X-Force, Beziehungen, +Cr-Floats). Neues
+  Markt-Panel + Org-Panel (Kasse/Flotte); TEST 12 prueft Handel/Abrechnung/Preise.
+- **2026-08-24** — Produktions-Phase (autonom): Organisationen auf X-COM-Apocalypse-Referenz
+  umgestellt (Rolle/Gueter je Org) und **Produktionsketten** gebaut: Ausruestung wird aus
+  Guetern hergestellt (Zuliefer-Flotte zum Produzenten, Lieferung an Basis, Inventar persistiert).
+  TEST 13 prueft Auftrag/Zulieferung/Montage/Lieferung/Rel-Gating.
+- **2026-08-24** — Abschluss-Phase (autonom): Auto-Abfangjaeger-Toggle, produzierte
+  Ausruestung wirkt im Gefecht (Boni), Investitionen/Dividenden und Syndikat-Schwarzmarkt.
+  TEST 14 (Stadt) + TEST 29 (Gefecht) decken die neuen Systeme ab.
 ### Next Steps (ordered)
 
 1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start
@@ -172,3 +199,5 @@ specified with the project owner — see open questions.)*
 | 2026-08-22 | Feature F1 agreed: helicopter troop transport + medevac for wounded soldiers. |
 | 2026-08-22 | Feature F2 agreed: improve the base building system (details TBD). |
 | 2026-08-22 | New features must be additive/opt-in; savegame compatibility via `gamestate_serialize.xml` is mandatory. |
+| 2026-08-24 | Browser-Spiel: Logik bleibt im Tile-Raster; Ansicht ist reine Projektion (Top-Down ↔ Iso), dadurch keine Desync-Gefahr online (VIEW.mode wird nie serialisiert). |
+| 2026-08-24 | Karten-Archetypen werden nur aus dem Seed gebaut und gespiegelt → faire Spawns, deterministisch auf allen Clients. |

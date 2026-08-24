@@ -77,9 +77,9 @@ eval(src + `
 
   console.log('TEST 5: Misserfolg & Infiltration');
   const infBefore = infiltration;
-  applyMissionResult({ won: false, name: 'Testgebaeude', org: 'gilde' });
+  applyMissionResult({ won: false, name: 'Testgebaeude', org: 'transtellar' });
   globalThis.__c('Niederlage: Infiltration steigt +8', infiltration === Math.min(100, infBefore + 8));
-  globalThis.__c('Niederlage: Beziehung sinkt (Gilde 50 -> 42)', ORGS.gilde.rel === 42);
+  globalThis.__c('Niederlage: Beziehung sinkt (Transtellar 50 -> 42)', ORGS.transtellar.rel === 42);
 
   console.log('TEST 6: UFOs, Gebaeudeschaden & Wiederaufbau');
   const fab = buildings.find(b => BTYPES[b.type].income > 0 && ORGS[b.org].rel >= 60);
@@ -108,8 +108,98 @@ eval(src + `
   console.log('TEST 8: Absturzstellen (Bergungsmissionen)');
   createCrashSite(12, 8);
   globalThis.__c('Absturzstelle erzeugt', crashes.length === 1 && crashes[0].x === 12);
-  globalThis.__c('Absturzstelle klickbar (Trefferzone)', crashAt(12 * 32, 8 * 32) === crashes[0]);
+  const cp = crashScreen(crashes[0]);
+  globalThis.__c('Absturzstelle klickbar (iso-Trefferzone)', crashAt(cp.x, cp.y) === crashes[0]);
+  globalThis.__c('Klick daneben trifft nicht', crashAt(cp.x + 200, cp.y + 120) === null);
   crashes.length = 0;
+
+  console.log('TEST 10: Isometrische Stadt (Projektion & Gebaeude-Treffer)');
+  const bb = buildings.find(b => b.type === 'base');
+  const bcx = (bb.x0 + bb.x1 + 1) / 2, bcy = (bb.y0 + bb.y1 + 1) / 2;
+  const t = cityTileAt(cxp(bcx, bcy), cyp(bcx, bcy));
+  globalThis.__c('Rueckprojektion trifft Basis-Tile', buildingAt(t.x, t.y) === bb);
+  globalThis.__c('Hoechere Gebaeude ragen ueber den Boden', (BHEIGHT.buero || 0) > (BHEIGHT.lagerhaus || 0));
+  let inB = true;
+  for (const b2 of buildings) {
+    const px2 = cxp(b2.x0, b2.y1 + 1), py2 = cyp(b2.x0, b2.y1 + 1) - (BHEIGHT[b2.type] || 40);
+    if (px2 < -40 || px2 > 1000 || py2 < -40 || py2 > 700) { inB = false; break; }
+  }
+  globalThis.__c('Iso-Stadt bleibt im Canvas', inB);
+
+  console.log('TEST 11: Atmosphaere-Renderer (Regen/Tag-Nacht/Rail/Flugverkehr)');
+  let ok11 = true;
+  try {
+    render(2000);      // Regen an
+    render(180000);    // Regen aus / andere Tageszeit
+    render(180050);
+  } catch (e) { ok11 = false; console.log('   render-Fehler: ' + e.message); }
+  globalThis.__c('Renderer laeuft mit allen Atmosphaeren-Schichten ohne Fehler', ok11);
+  globalThis.__c('Rail-Pods bleiben auf ihrer Route', (() => { const p = railPoint(railA, 0.5); return p[1] === 10.5; })());
+  globalThis.__c('Flugverkehr & Wolken definiert', fliers.length > 0 && typeof drawClouds === 'function');
+
+  console.log('TEST 12: Echte Wirtschaft & Handelsflotte');
+  const consGoods = new Set(Object.values(CONS));
+  globalThis.__c('Jedes Verbrauchsgut hat einen Produzenten', [...consGoods].every(g => Object.values(PROD).includes(g)));
+  globalThis.__c('Organisationen haben Startkapital', Object.entries(ORGS).filter(([k]) => k !== 'xforce').every(([k, o]) => o.cash > 0));
+  trades.length = 0;
+  for (let i = 0; i < 12 && trades.length === 0; i++) spawnTrade();
+  globalThis.__c('Handelsauftrag erzeugt (Produzent->Konsument, Preis>0)', trades.length === 1 && trades[0].price > 0 && PROD[trades[0].from.type] === CONS[trades[0].to.type]);
+  const tr0 = trades[0];
+  const seller = ORGS[tr0.org], buyer = ORGS[tr0.buyer];
+  const cashS = seller.cash, cashB = buyer.cash;
+  globalThis.__c('Flotten-Zaehler fuer Org korrekt', orgEnroute(tr0.org) === 1);
+  tr0.t = 0.999;
+  updateTrades.last = 100000; updateTrades(100000 + 400);   // dt=400 -> Ankunft
+  globalThis.__c('Lieferung abgerechnet: Verkaeufer +Kasse, Kaeufer -Kasse', seller.cash > cashS && buyer.cash < cashB);
+  globalThis.__c('Auftrag nach Lieferung entfernt + Float-Text', trades.length === 0 && floats.length >= 1);
+  globalThis.__c('Verkaufs-/Einkaufszahlen hochgezaehlt', seller.sales >= 1 && buyer.buys >= 1);
+  tradeVolumeToday = 1000;
+  const dayPay = econDayPayout();
+  globalThis.__c('Tagespayout = Subvention + Handelssteuer (>0)', dayPay > 0);
+  tradeVolumeToday = 0;
+  floats.length = 0;
+
+  console.log('TEST 13: Ausruestungs-Produktion (Zulieferung->Montage->Basis)');
+  walletAddLoot(500);
+  const cash0 = pendingLoot();
+  const t0 = trades.length;
+  orderProduction('medikit');   // Nanotech (rel 70) -> 2 Zulieferungen (Medizin+Waren)
+  globalThis.__c('Auftrag kostet Cash (-35)', pendingLoot() === cash0 - 35);
+  globalThis.__c('Zuliefer-Trades erzeugt (2)', trades.length === t0 + 2);
+  const sup = trades.filter(t => t.order);
+  globalThis.__c('Zulieferer passen zu den Rezept-Guetern', sup.every(t => PROD[t.from.type] === t.good));
+  sup.forEach(t => settleTrade(t));
+  const del = trades.find(t => t.equip === 'medikit');
+  globalThis.__c('Nach Zulieferung: Montage liefert an Basis', !!del && del.to.type === 'base');
+  const inv0 = equipInv.medikit || 0;
+  if (del) settleTrade(del);
+  globalThis.__c('Inventar erhoeht sich nach Lieferung', (equipInv.medikit || 0) === inv0 + 1);
+  const bt = trades.length, bc2 = pendingLoot();
+  orderProduction('granaten');  // Diablo rel 30 <40 -> abgelehnt
+  globalThis.__c('Produzent mit rel<40 verweigert Produktion', trades.length === bt && pendingLoot() === bc2);
+  prodOrders.length = 0; trades.length = 0;
+
+  console.log('TEST 14: Auto-Abfangjaeger, Investition, Schwarzmarkt');
+  walletAddLoot(600);
+  const l0 = pendingLoot();
+  autoIntercept = true;
+  ufos.length = 0; interceptor = null;
+  spawnUfo();
+  globalThis.__c('Auto-Abfang startet automatisch bei UFO', interceptor !== null);
+  globalThis.__c('Auto-Abfang kostet Credits', pendingLoot() === l0 - 200);
+  autoIntercept = false; interceptor = null;
+  const r0 = ORGS.megapol.rel, sh0 = ORGS.megapol.shares || 0;
+  walletAddLoot(200);
+  investIn('megapol');
+  globalThis.__c('Investition: +1 Anteil & +Beziehung', (ORGS.megapol.shares || 0) === sh0 + 1 && ORGS.megapol.rel === r0 + 4);
+  globalThis.__c('Dividende > 0 bei Anteilen', dividendPayout() > 0);
+  infiltration = 60;
+  const inf0 = infiltration, lb = pendingLoot();
+  const em0 = equipInv.medikit || 0;
+  buyBlackMarket('medikit');
+  globalThis.__c('Schwarzmarkt: Inventar+1, Credits-, Infiltration+2',
+    (equipInv.medikit || 0) === em0 + 1 && pendingLoot() < lb && infiltration === inf0 + 2);
+  infiltration = inf0;
 
   console.log('TEST 9: Strassennetz & Verkehr');
   globalThis.__c('Strassenzellen vorhanden', roads.length > 50);
