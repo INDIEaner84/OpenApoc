@@ -3180,6 +3180,7 @@ Vehicle::addMission(GameState &state, VehicleMission mission, bool toBack)
 		// - Cannot place on crashed vehicles
 		// - Cannot place on carrying vehicles
 		case VehicleMission::MissionType::GotoBuilding:
+		case VehicleMission::MissionType::MedicalEvacuation:
 		case VehicleMission::MissionType::InvestigateBuilding:
 		case VehicleMission::MissionType::FollowVehicle:
 		case VehicleMission::MissionType::RecoverVehicle:
@@ -3241,6 +3242,7 @@ bool Vehicle::setMission(GameState &state, VehicleMission mission)
 			break;
 		case VehicleMission::MissionType::GotoLocation:
 		case VehicleMission::MissionType::GotoBuilding:
+		case VehicleMission::MissionType::MedicalEvacuation:
 		case VehicleMission::MissionType::InvestigateBuilding:
 		case VehicleMission::MissionType::FollowVehicle:
 		case VehicleMission::MissionType::RecoverVehicle:

@@ -101,6 +101,29 @@ enum class ReserveShotMode
 	None = 0
 };
 
+// A serialized high-level order. The plan executor translates one action at a
+// time into existing BattleUnitMission instances, so normal pathfinding,
+// interrupts and turn-based TU acquisition remain authoritative.
+struct BattleUnitPlanAction
+{
+	enum class Type
+	{
+		Move,
+		ChangeStance,
+		Turn,
+		Wait,
+		WaitForGoCode,
+	};
+
+	Type type = Type::Move;
+	Vec3<int> targetLocation = {0, 0, 0};
+	Vec2<int> targetFacing = {0, 0};
+	BodyState targetBodyState = BodyState::Standing;
+	MovementMode movementMode = MovementMode::Walking;
+	unsigned int waitTicks = 0;
+	UString goCode;
+};
+
 // Unit's general type, used in pathfinding
 enum class BattleUnitType
 {
@@ -334,6 +357,15 @@ class BattleUnit : public StateObject<BattleUnit>, public std::enable_shared_fro
 	// Mission list
 	std::list<up<BattleUnitMission>> missions;
 
+	// Optional player-authored tactical plan. Only the executor cursor and
+	// released go-codes mutate during execution; the authored actions remain
+	// available for map overlays and inspection.
+	std::vector<BattleUnitPlanAction> plannedActions;
+	unsigned int nextPlannedAction = 0;
+	bool planExecuting = false;
+	bool planPaused = false;
+	std::set<UString> releasedPlanGoCodes;
+
 	// Vision
 
 	// Item shown in unit's hands
@@ -541,6 +573,15 @@ class BattleUnit : public StateObject<BattleUnit>, public std::enable_shared_fro
 	void beginTurning(GameState &state, Vec2<int> newFacing);
 
 	// Missions
+
+	// Tactical planning API. Editing a plan never changes active missions.
+	void clearPlan();
+	void addPlannedAction(const BattleUnitPlanAction &action);
+	void startPlan(bool restart = true);
+	void pausePlan(bool pause = true);
+	void releasePlanGoCode(const UString &goCode);
+	// Releases at most one high-level action into the normal mission system.
+	void updatePlan(GameState &state);
 
 	// Pops all finished missions, returns true if popped
 	bool popFinishedMissions(GameState &state);

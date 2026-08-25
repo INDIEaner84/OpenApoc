@@ -1123,6 +1123,35 @@ void Battle::initialUnitSpawn(GameState &state)
 
 void Battle::setMode(Mode mode) { this->mode = mode; }
 
+void Battle::startSquadPlan(StateRef<Organisation> owner, int squadNumber, bool restart)
+{
+	for (auto &entry : units)
+		if (entry.second->owner == owner && entry.second->squadNumber == squadNumber)
+			entry.second->startPlan(restart);
+}
+
+void Battle::pauseSquadPlan(StateRef<Organisation> owner, int squadNumber, bool pause)
+{
+	for (auto &entry : units)
+		if (entry.second->owner == owner && entry.second->squadNumber == squadNumber)
+			entry.second->pausePlan(pause);
+}
+
+void Battle::clearSquadPlan(StateRef<Organisation> owner, int squadNumber)
+{
+	for (auto &entry : units)
+		if (entry.second->owner == owner && entry.second->squadNumber == squadNumber)
+			entry.second->clearPlan();
+}
+
+void Battle::releaseSquadPlanGoCode(StateRef<Organisation> owner, int squadNumber,
+                                    const UString &goCode)
+{
+	for (auto &entry : units)
+		if (entry.second->owner == owner && entry.second->squadNumber == squadNumber)
+			entry.second->releasePlanGoCode(goCode);
+}
+
 sp<Doodad> Battle::placeDoodad(StateRef<DoodadType> type, Vec3<float> position)
 {
 	auto doodad = mksp<Doodad>(position, type);

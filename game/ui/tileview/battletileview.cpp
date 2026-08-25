@@ -1529,6 +1529,23 @@ void BattleTileView::render()
 				}
 			}
 
+			// Add authored tactical-plan route legs for selected units. Keeping these
+			// separate from active missions lets players inspect the complete plan.
+			for (const auto &unit : battle.battleViewSelectedUnits)
+			{
+				Vec3<int> previous = (Vec3<int>)unit->position;
+				for (unsigned int i = unit->nextPlannedAction; i < unit->plannedActions.size(); i++)
+				{
+					const auto &action = unit->plannedActions[i];
+					if (action.type != BattleUnitPlanAction::Type::Move)
+						continue;
+					targetLocationsToDraw.emplace_back(
+					    action.targetLocation, previous,
+					    action.targetLocation.z == battle.battleViewZLevel - 1);
+					previous = action.targetLocation;
+				}
+			}
+
 			// Draw stuff
 			for (auto &obj : targetLocationsToDraw)
 			{

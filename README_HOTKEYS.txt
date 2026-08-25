@@ -174,6 +174,14 @@ Battlescape Keyboard:
 - [L] Open Load menu
 - [J] Make unit jump (down from a cliff)
 
+Battlescape Tactical Planning:
+- [P] Append the tile under the cursor to every selected unit's plan
+- [Shift] + [P] Start/restart selected units' plans
+- [Alt] + [P] Pause/resume selected units' plans
+- [Ctrl] + [P] Clear selected units' plans
+- [Ctrl] + [Alt] + [A]/[B]/[C] Append an Alpha/Bravo/Charlie go-code barrier
+- [Ctrl] + [Shift] + [A]/[B]/[C] Release an Alpha/Bravo/Charlie go-code
+
 Battlescape Debug:
 - [F1] Debug hotkeys are toggled on/off, when they are on some of the normal hotkeys are off
 - [Middle Click] Activate teleportation mode for unit regardless of wether it holds a charged teleporter

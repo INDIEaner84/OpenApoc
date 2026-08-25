@@ -224,6 +224,13 @@ class Battle : public std::enable_shared_from_this<Battle>
 	// Queue relevant los blocks for refresh
 	void queuePathfindingRefresh(Vec3<int> tile);
 
+	// Coordinate authored plans for every unit in one organisation's squad.
+	void startSquadPlan(StateRef<Organisation> owner, int squadNumber, bool restart = true);
+	void pauseSquadPlan(StateRef<Organisation> owner, int squadNumber, bool pause = true);
+	void clearSquadPlan(StateRef<Organisation> owner, int squadNumber);
+	void releaseSquadPlanGoCode(StateRef<Organisation> owner, int squadNumber,
+	                            const UString &goCode);
+
 	// Move a group of units in formation
 	void groupMove(GameState &state, std::list<StateRef<BattleUnit>> &selectedUnits,
 	               Vec3<int> targetLocation, int facingDelta = 0, bool demandGiveWay = false,
