@@ -516,6 +516,16 @@
     <member>cancelled</member>
   </object>
   <object>
+    <name>BattleUnitPlanAction</name>
+    <member>type</member>
+    <member>targetLocation</member>
+    <member>targetFacing</member>
+    <member>targetBodyState</member>
+    <member>movementMode</member>
+    <member>waitTicks</member>
+    <member>goCode</member>
+  </object>
+  <object>
     <name>BattleUnitMission</name>
     <member>type</member>
     <member>targetLocation</member>
@@ -870,6 +880,11 @@
     <member>current_movement_state</member>
     <member>turning_animation_ticks_remaining</member>
     <member>missions</member>
+    <member>plannedActions</member>
+    <member>nextPlannedAction</member>
+    <member>planExecuting</member>
+    <member>planPaused</member>
+    <member>releasedPlanGoCodes</member>
     <member>position</member>
     <member>goalPosition</member>
     <member>atGoal</member>
@@ -1614,6 +1629,7 @@
     <value>DepartToSpace</value>
     <value>ArriveFromDimensionGate</value>
     <value>InvestigateBuilding</value>
+    <value>MedicalEvacuation</value>
   </enum>
   <enum>
     <name>AgentMission::MissionType</name>
@@ -1622,6 +1638,14 @@
     <value>RestartNextMission</value>
     <value>Snooze</value>
     <value>Teleport</value>
+  </enum>
+  <enum>
+    <name>BattleUnitPlanAction::Type</name>
+    <value>Move</value>
+    <value>ChangeStance</value>
+    <value>Turn</value>
+    <value>Wait</value>
+    <value>WaitForGoCode</value>
   </enum>
   <enum>
     <name>BattleUnitMission::Type</name>

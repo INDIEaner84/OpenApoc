@@ -132,6 +132,44 @@ specified with the project owner — see open questions.)*
   - Better placement UX in `basescreen` (rotate, move before confirm)
   - Rebalanced costs/build times (data lives in mod files, not code)
 
+### F3 — Tactical squad planning (Rogue Spear style) 🗺️
+
+**Goal:** Extend the tactical overview into an optional command-planning system
+where units and squads can receive complete routes and synchronized actions
+before execution. The project owner approved the complete feature set on
+2026-08-22.
+
+**Agreed scope (implemented incrementally):**
+
+1. **P1 — Route planning:** planning mode; multiple editable waypoints per
+   unit/squad; coloured and numbered route overlays in both tactical overview
+   and isometric battle view; execute, pause, resume and cancel controls.
+2. **P2 — Movement details:** per-leg movement mode (walk/run/crawl), stance,
+   facing direction and timed/indefinite waits at waypoints.
+3. **P3 — Synchronization:** named go-codes (`Alpha`, `Bravo`, `Charlie`, and
+   `Execute`) shared across squads; execute all or release one phase at a time.
+4. **P4 — Tactical actions:** doors, aimed/fire-mode orders, grenade throws,
+   smoke, equipment use, cover and observation/fire sectors.
+5. **P5 — Robustness and UX:** edit/reorder/copy routes, optional templates,
+   TU/time estimates, path/fire-sector conflict and friendly-fire warnings,
+   automatic rerouting, and configurable reactions to contact, injury, panic,
+   blocked paths, missing targets and insufficient TU.
+
+**Architecture rules:**
+
+- Plans are a separate serialized layer, not preloaded directly into
+  `BattleUnit::missions`. A plan executor releases only the next applicable
+  action as a normal `BattleUnitMission`, preserving existing pathfinding, AI,
+  interruption and turn logic.
+- The feature is optional and must support both real-time and turn-based play.
+  Existing controls and unplanned tactical behavior remain unchanged.
+- Every phase needs focused tests before the next phase builds on it.
+
+**Likely files/modules:** `game/state/battle/battleunitmission.*`,
+`game/state/battle/battleunit.*`, a new serialized battle-plan state module,
+`game/ui/battle/`, tactical tile/overview rendering, controls/forms, and
+`game/state/gamestate_serialize.xml`.
+
 ### Feature ground rules
 
 - Both features are **additive**: default behaviour without using them must
@@ -144,6 +182,25 @@ specified with the project owner — see open questions.)*
 
 ### Done
 
+- **2026-08-22** — Started F3 P1–P3 core: added a serialized, mission-independent
+  `BattleUnitPlanAction` model and per-unit authored plan state. The executor
+  releases one action at a time into the existing mission system and currently
+  supports movement with per-leg speed, stance changes, facing, timed waits,
+  go-code barriers, start/restart, pause/resume and cancellation/clearing APIs.
+  A first keyboard-driven UI is now connected: selected units can append hovered
+  tiles, execute/pause/clear plans, append/release Alpha/Bravo/Charlie barriers,
+  and see their remaining route legs rendered in the battlescape. Dedicated
+  buttons, waypoint manipulation, action menus and overview-map polish remain.
+- **2026-08-22** — Implemented the F1 medevac mission core: added the dedicated,
+  savegame-serialized `VehicleMission::MissionType::MedicalEvacuation`, its
+  factory, lifecycle handling, mission naming, validation, and map rendering.
+  At the pickup building it now selects wounded living X-COM soldiers, respects
+  both passenger and free Medical capacity, prefers the vehicle's home base
+  when suitable (otherwise the nearest player base in the city), boards the
+  agents, assigns that treatment base as their home, and returns there. Agents
+  remain in the landed vehicle, which is already supported by passive base
+  healing. Existing enum values remain stable because the new value was
+  appended.
 - **2026-08-22** — Synced fork with upstream `OpenApoc/OpenApoc` master
   (`b137e12`, 39 commits, incl. removal of LUA scripting). Full build verified
   (229 targets), 7/10 tests pass (3 need CD data). Architecture analysis written:
@@ -151,16 +208,21 @@ specified with the project owner — see open questions.)*
 
 ### Next Steps (ordered)
 
-1. **F1 medevac (helicopter picks up wounded)** — biggest agreed feature; start
-   with the new `MedicalEvacuation` vehicle mission (see Feature Backlog F1).
-2. **F2 base building** — clarify the open questions in Feature Backlog F2
+1. **F1 medevac integration** — add focused mission tests, expose a manual city
+   UI order, add departure/arrival `GameEvent` messages, and then add the
+   optional post-battle dispatch hook. Core pickup and return behavior exists.
+2. **F3 tactical planning integration** — connect the new serialized action
+   model/executor to squad-level go-code controls and tactical route editing and
+   rendering; then extend action types to doors, attacks, throws, equipment and
+   safety/replanning policies.
+3. **F2 base building** — clarify the open questions in Feature Backlog F2
    with the project owner, then break into tasks.
-3. **Engine modernization** starting with the small, self-contained
+4. **Engine modernization** starting with the small, self-contained
    `library/` layer (1.5 kLOC) — low risk, everything depends on it, good
    place to establish modern conventions.
-4. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
+5. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
    while touching the respective modules.
-5. Keep the fork regularly synced with upstream to avoid drift.
+6. Keep the fork regularly synced with upstream to avoid drift.
 
 ### Decisions Log
 
@@ -171,4 +233,5 @@ specified with the project owner — see open questions.)*
 | 2026-08-22 | This file is the persistent project memory; keep it updated. |
 | 2026-08-22 | Feature F1 agreed: helicopter troop transport + medevac for wounded soldiers. |
 | 2026-08-22 | Feature F2 agreed: improve the base building system (details TBD). |
+| 2026-08-22 | Feature F3 approved in full: optional Rogue Spear-style tactical route/action planning, go-codes, synchronized execution, and robust dynamic replanning, delivered in phases P1–P5. |
 | 2026-08-22 | New features must be additive/opt-in; savegame compatibility via `gamestate_serialize.xml` is mandatory. |

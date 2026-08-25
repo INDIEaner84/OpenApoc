@@ -1978,6 +1978,10 @@ void BattleUnit::update(GameState &state, unsigned int ticks)
 		item->update(state, ticks);
 	}
 
+	// Release the next authored tactical-plan action only when the regular
+	// mission system is idle, then let the existing mission machinery run it.
+	updatePlan(state);
+
 	// Update Missions
 	if (!this->missions.empty())
 		this->missions.front()->update(state, *this, ticks);
@@ -5581,6 +5585,92 @@ bool BattleUnit::shouldPlaySoundNow()
 		movement_sounds_played = sounds_to_play;
 	}
 	return play;
+}
+
+void BattleUnit::clearPlan()
+{
+	plannedActions.clear();
+	nextPlannedAction = 0;
+	planExecuting = false;
+	planPaused = false;
+	releasedPlanGoCodes.clear();
+}
+
+void BattleUnit::addPlannedAction(const BattleUnitPlanAction &action)
+{
+	plannedActions.push_back(action);
+}
+
+void BattleUnit::startPlan(bool restart)
+{
+	if (restart)
+	{
+		nextPlannedAction = 0;
+		releasedPlanGoCodes.clear();
+	}
+	planExecuting = nextPlannedAction < plannedActions.size();
+	planPaused = false;
+}
+
+void BattleUnit::pausePlan(bool pause) { planPaused = pause; }
+
+void BattleUnit::releasePlanGoCode(const UString &goCode)
+{
+	if (!goCode.empty())
+		releasedPlanGoCodes.insert(goCode);
+}
+
+void BattleUnit::updatePlan(GameState &state)
+{
+	if (!planExecuting || planPaused || !missions.empty() || !isConscious())
+		return;
+	if (nextPlannedAction >= plannedActions.size())
+	{
+		planExecuting = false;
+		return;
+	}
+
+	const auto &action = plannedActions[nextPlannedAction];
+	BattleUnitMission *mission = nullptr;
+	switch (action.type)
+	{
+		case BattleUnitPlanAction::Type::Move:
+			setMovementMode(action.movementMode);
+			mission = BattleUnitMission::gotoLocation(*this, action.targetLocation);
+			break;
+		case BattleUnitPlanAction::Type::ChangeStance:
+			mission = BattleUnitMission::changeStance(*this, action.targetBodyState);
+			break;
+		case BattleUnitPlanAction::Type::Turn:
+			mission = BattleUnitMission::turn(*this, action.targetFacing);
+			break;
+		case BattleUnitPlanAction::Type::Wait:
+			mission = BattleUnitMission::snooze(*this, action.waitTicks);
+			break;
+		case BattleUnitPlanAction::Type::WaitForGoCode:
+			if (releasedPlanGoCodes.find(action.goCode) == releasedPlanGoCodes.end())
+				return;
+			nextPlannedAction++;
+			updatePlan(state);
+			return;
+	}
+
+	if (!mission)
+	{
+		LogWarning("Unit {0} could not create planned action {1}", id, nextPlannedAction);
+		planPaused = true;
+		return;
+	}
+	if (addMission(state, mission))
+	{
+		nextPlannedAction++;
+	}
+	else
+	{
+		// addMission owns and deletes rejected missions where appropriate.
+		LogWarning("Unit {0} could not execute planned action {1}", id, nextPlannedAction);
+		planPaused = true;
+	}
 }
 
 bool BattleUnit::popFinishedMissions(GameState &state)
