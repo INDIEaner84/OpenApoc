@@ -2106,7 +2106,7 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 
 			if (missionCounter == 0)
 			{
-				StateRef<Base> destination;
+				sp<Base> destination;
 				int freeMedicalCapacity = 0;
 				float bestDistance = std::numeric_limits<float>::max();
 				for (const auto &entry : state.player_bases)
@@ -2141,7 +2141,7 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 				    std::min(v.getMaxPassengers() - v.getPassengers(), freeMedicalCapacity);
 				int pickedUp = 0;
 				const auto agents = targetBuilding->currentAgents;
-				for (const auto &agent : agents)
+				for (auto agent : agents)
 				{
 					if (pickedUp >= pickupLimit)
 						break;
@@ -2164,6 +2164,12 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 
 				missionCounter = 1;
 				targetBuilding = destination->building;
+				if (v.owner == state.getPlayer())
+				{
+					fw().pushEvent(new GameVehicleEvent(
+					    GameEventType::MedicalEvacuationStarted,
+					    {&state, v.shared_from_this()}));
+				}
 				v.addMission(state, gotoBuilding(state, v, targetBuilding, allowTeleporter));
 				return;
 			}
@@ -2171,6 +2177,12 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 			// The agents remain inside the landed vehicle, matching normal transport
 			// behaviour. Being at their new home base allows medical healing to begin.
 			missionCounter = 2;
+			if (v.owner == state.getPlayer())
+			{
+				fw().pushEvent(new GameVehicleEvent(
+				    GameEventType::MedicalEvacuationCompleted,
+				    {&state, v.shared_from_this()}));
+			}
 			return;
 		}
 		case MissionType::InvestigateBuilding:

@@ -414,6 +414,9 @@
     <value>MissionCompletedVehicle</value>
     <value>MissionCompletedBuildingAlien</value>
     <value>None</value>
+    <!-- Medevac (F1): appended after None so existing serialized values stay stable -->
+    <value>MedicalEvacuationStarted</value>
+    <value>MedicalEvacuationCompleted</value>
   </enum>
   <enum>
     <name>Cargo::Type</name>

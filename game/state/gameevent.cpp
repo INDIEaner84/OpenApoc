@@ -32,6 +32,8 @@ const std::map<GameEventType, UString> GameEvent::optionsMap = {
     {GameEventType::VehicleRefuelled, "Notifications.City.VehicleRefuelled"},
     {GameEventType::NotEnoughFuel, "Notifications.City.NotEnoughFuel"},
     {GameEventType::CommenceInvestigation, "Notifications.City.CommenceInvestigation"},
+    {GameEventType::MedicalEvacuationStarted, "Notifications.City.MedicalEvacuationStarted"},
+    {GameEventType::MedicalEvacuationCompleted, "Notifications.City.MedicalEvacuationCompleted"},
     {GameEventType::UnauthorizedVehicle, "Notifications.City.UnauthorizedVehicle"},
     {GameEventType::BaseDestroyed, "Notifications.City.BaseDestroyed"},
 
@@ -133,6 +135,19 @@ UString GameVehicleEvent::message()
 			return format(
 			    tr("Vehicle landed with alien loot in base with no alien containment: {0}"),
 			    vehicle->name);
+		case GameEventType::MedicalEvacuationStarted:
+			return format(
+			    tr("Medical evacuation: {0} is transporting wounded soldiers to a base"),
+			    vehicle->name);
+		case GameEventType::MedicalEvacuationCompleted:
+			if (vehicle->currentBuilding)
+			{
+				return format(
+				    tr("Medical evacuation complete: {0} arrived at {1} with the wounded"),
+				    vehicle->name, vehicle->currentBuilding->name);
+			}
+			return format(tr("Medical evacuation complete: {0} arrived at base with the wounded"),
+			              vehicle->name);
 		default:
 			LogError("Invalid vehicle event type");
 			break;

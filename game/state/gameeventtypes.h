@@ -116,6 +116,10 @@ enum class GameEventType
 	MissionCompletedVehicle,
 	MissionCompletedBuildingAlien,
 
-	None
+	None,
+
+	// Medevac (F1): appended after None so existing serialized values stay stable
+	MedicalEvacuationStarted,
+	MedicalEvacuationCompleted,
 };
 }
