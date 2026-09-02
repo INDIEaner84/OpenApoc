@@ -9,6 +9,7 @@
 #include "game/state/city/base.h"
 #include "game/state/city/building.h"
 #include "game/state/city/city.h"
+#include "game/state/city/medevac.h"
 #include "game/state/city/scenery.h"
 #include "game/state/city/vehicle.h"
 #include "game/state/gameevent.h"
@@ -25,8 +26,11 @@
 #include "game/state/tilemap/tileobject_scenery.h"
 #include "game/state/tilemap/tileobject_vehicle.h"
 #include "library/strings_format.h"
+#include <algorithm>
 #include <glm/glm.hpp>
 #include <limits>
+#include <vector>
+#include "game/state/city/medevac.h"
 
 namespace OpenApoc
 {
@@ -2106,60 +2110,65 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 
 			if (missionCounter == 0)
 			{
-				sp<Base> destination;
-				int freeMedicalCapacity = 0;
-				float bestDistance = std::numeric_limits<float>::max();
+				// Assemble the pure input data for the shared medevac planner
+				// (kept in sync with tests/test_medevac.cpp).
+				std::vector<MedevacPlanner::BaseCandidate> baseCandidates;
+				std::vector<sp<Base>> bases;
 				for (const auto &entry : state.player_bases)
 				{
 					auto base = entry.second;
 					if (!base || !base->building || base->building->city != v.city)
-						continue;
-					const int free = base->getCapacityTotal(FacilityType::Capacity::Medical) -
-					                 base->getCapacityUsed(state, FacilityType::Capacity::Medical);
-					if (free <= 0)
-						continue;
-					const auto delta = base->building->bounds.p0 - targetBuilding->bounds.p0;
-					const float distance = static_cast<float>(delta.x * delta.x + delta.y * delta.y);
-					const bool isHome = base->building == v.homeBuilding;
-					if (!destination || isHome ||
-					    (destination->building != v.homeBuilding && distance < bestDistance))
 					{
-						destination = base;
-						freeMedicalCapacity = free;
-						bestDistance = distance;
+						continue;
 					}
+					MedevacPlanner::BaseCandidate candidate;
+					candidate.freeMedicalCapacity =
+					    base->getCapacityTotal(FacilityType::Capacity::Medical) -
+					    base->getCapacityUsed(state, FacilityType::Capacity::Medical);
+					candidate.isHomeBase = base->building == v.homeBuilding;
+					const auto delta = base->building->bounds.p0 - targetBuilding->bounds.p0;
+					candidate.distanceSquared = delta.x * delta.x + delta.y * delta.y;
+					baseCandidates.push_back(candidate);
+					bases.push_back(base);
 				}
 
-				if (!destination)
+				std::vector<MedevacPlanner::AgentCandidate> agentCandidates;
+				std::vector<StateRef<Agent>> agents;
+				for (auto agent : targetBuilding->currentAgents)
+				{
+					MedevacPlanner::AgentCandidate candidate;
+					candidate.woundedXComSoldier =
+					    agent->owner == state.getPlayer() &&
+					    agent->type->role == AgentType::Role::Soldier &&
+					    agent->modified_stats.health > 0 &&
+					    agent->modified_stats.health < agent->current_stats.health;
+					agentCandidates.push_back(candidate);
+					agents.push_back(agent);
+				}
+
+				const auto plan = MedevacPlanner::plan(
+				    baseCandidates, v.getMaxPassengers() - v.getPassengers(), agentCandidates);
+
+				if (plan.baseIndex == -1)
 				{
 					LogWarning("Medical evacuation found no base with free Medical capacity");
 					cancelled = true;
 					return;
 				}
 
-				const int pickupLimit =
-				    std::min(v.getMaxPassengers() - v.getPassengers(), freeMedicalCapacity);
-				int pickedUp = 0;
-				const auto agents = targetBuilding->currentAgents;
-				for (auto agent : agents)
-				{
-					if (pickedUp >= pickupLimit)
-						break;
-					if (agent->owner != state.getPlayer() ||
-					    agent->type->role != AgentType::Role::Soldier ||
-					    agent->modified_stats.health <= 0 ||
-					    agent->modified_stats.health >= agent->current_stats.health)
-						continue;
-					agent->homeBuilding = destination->building;
-					agent->enterVehicle(state, {&state, v.shared_from_this()});
-					pickedUp++;
-				}
-
-				if (pickedUp == 0)
+				if (plan.agentIndices.empty())
 				{
 					LogInfo("Medical evacuation found no eligible wounded agents");
 					cancelled = true;
 					return;
+				}
+
+				const auto destination = bases[plan.baseIndex];
+				for (auto agentIndex : plan.agentIndices)
+				{
+					auto agent = agents[agentIndex];
+					agent->homeBuilding = destination->building;
+					agent->enterVehicle(state, {&state, v.shared_from_this()});
 				}
 
 				missionCounter = 1;
