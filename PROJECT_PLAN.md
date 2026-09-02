@@ -202,6 +202,7 @@ before execution. The project owner approved the complete feature set on
   extended (`weaponStatus` member, three new `BattleUnitPlanAction::Type`
   values appended). Notes: the plan executor only runs in real-time mode
   (pre-existing P1–P3 behaviour); TB execution is an open follow-up.
+  Verified: full build green (234 targets) and 8/8 CD-free tests pass.
 - **2026-09-02** — Sandbox resilience: the dev sandbox is periodically reset
   to a clean base image (all of `/opt/local`, `~/venv`, `~/src`, `build/` and
   even the local git refs can disappear mid-session; pushed commits and repo
