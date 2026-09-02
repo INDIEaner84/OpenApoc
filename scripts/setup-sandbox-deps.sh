@@ -86,19 +86,29 @@ mkdir -p /opt/local/include/GL
 cat > /opt/local/include/GL/glx.h <<'EOF'
 #pragma once
 // Minimal stub for environments without real GL/GLX dev headers.
+// Resolves the real symbols at runtime through libGL.
+#include <dlfcn.h>
+
 typedef unsigned char GLubyte;
 typedef void (*__GLXextFuncPtr)(void);
 
 static inline __GLXextFuncPtr glXGetProcAddress(const GLubyte *procName)
 {
-	extern void *dlsym(void *, const char *);
-	extern void *dlopen(const char *, int);
-	extern void *glXGetProcAddressARB(const GLubyte *) __attribute__((weak));
-	if (glXGetProcAddressARB)
+	typedef __GLXextFuncPtr (*glXGetProcAddressARB_t)(const GLubyte *);
+	static glXGetProcAddressARB_t getProc = nullptr;
+	if (!getProc)
 	{
-		return (__GLXextFuncPtr)glXGetProcAddressARB(procName);
+		getProc = (glXGetProcAddressARB_t)dlsym(RTLD_DEFAULT, "glXGetProcAddressARB");
 	}
-	static void *handle = dlopen("libGL.so.1", 2 /* RTLD_NOW */);
+	if (getProc)
+	{
+		return getProc(procName);
+	}
+	void *handle = dlopen("libGL.so.1", RTLD_NOW);
+	if (!handle)
+	{
+		return nullptr;
+	}
 	return (__GLXextFuncPtr)dlsym(handle, (const char *)procName);
 }
 
