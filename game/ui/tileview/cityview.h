@@ -44,7 +44,8 @@ enum class CitySelectionState
 	GotoLocation,
 	AttackVehicle,
 	AttackBuilding,
-	ManualControl
+	ManualControl,
+	MedicalEvacuation
 };
 
 class CityView : public CityTileView
@@ -118,6 +119,7 @@ class CityView : public CityTileView
 	void orderAttack(StateRef<Vehicle> vehicle, bool forced);
 	void orderFollow(StateRef<Vehicle> vehicle);
 	void orderAttack(StateRef<Building> building);
+	void orderMedicalEvacuation(StateRef<Building> building);
 	void orderDisableWeapon(int index, bool disable);
 
   public:

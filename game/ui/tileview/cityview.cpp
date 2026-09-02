@@ -228,6 +228,12 @@ bool CityView::handleClickedBuilding(StateRef<Building> building, bool rightClic
 				setSelectionState(CitySelectionState::Normal);
 				return true;
 			}
+			case CitySelectionState::MedicalEvacuation:
+			{
+				orderMedicalEvacuation(building);
+				setSelectionState(CitySelectionState::Normal);
+				return true;
+			}
 			case CitySelectionState::AttackVehicle:
 			case CitySelectionState::GotoLocation:
 			case CitySelectionState::ManualControl:
@@ -311,6 +317,12 @@ bool CityView::handleClickedBuilding(StateRef<Building> building, bool rightClic
 		case CitySelectionState::GotoBuilding:
 		{
 			orderMove(building, modifierRCtrl || modifierLCtrl);
+			setSelectionState(CitySelectionState::Normal);
+			return true;
+		}
+		case CitySelectionState::MedicalEvacuation:
+		{
+			orderMedicalEvacuation(building);
 			setSelectionState(CitySelectionState::Normal);
 			return true;
 		}
@@ -636,6 +648,51 @@ void CityView::orderMove(StateRef<Building> building, bool alternative)
 			a->setMission(*state,
 			              AgentMission::gotoBuilding(*state, *a, building, useTeleporter, useTaxi));
 		}
+	}
+}
+
+void CityView::orderMedicalEvacuation(StateRef<Building> building)
+{
+	// Only order when the building actually contains wounded X-COM soldiers
+	bool anyWounded = false;
+	for (auto agent : building->currentAgents)
+	{
+		if (agent->owner == state->getPlayer() &&
+		    agent->type->role == AgentType::Role::Soldier &&
+		    agent->modified_stats.health > 0 &&
+		    agent->modified_stats.health < agent->current_stats.health)
+		{
+			anyWounded = true;
+			break;
+		}
+	}
+	if (!anyWounded)
+	{
+		LogInfo("No wounded X-COM soldiers in building \"{0}\"", building->name);
+		return;
+	}
+	if (activeTab != uiTabs[1])
+	{
+		LogInfo("Medical evacuation requires selected vehicles on the vehicles tab");
+		return;
+	}
+	bool orderedAny = false;
+	for (auto &v : this->state->current_city->cityViewSelectedOwnedVehicles)
+	{
+		if (!v || v->owner != state->getPlayer() || v->getMaxPassengers() <= 0)
+		{
+			continue;
+		}
+		LogInfo("Vehicle \"{0}\" medical evacuation from building \"{1}\"", v->name,
+		        building->name);
+		// FIXME: Don't clear missions if not replacing current mission
+		v->setMission(*state,
+		              VehicleMission::medicalEvacuation(*state, *v, building, false));
+		orderedAny = true;
+	}
+	if (!orderedAny)
+	{
+		LogInfo("None of the selected vehicles can transport wounded soldiers");
 	}
 }
 /* if (agent->type->role == AgentType::Role::Soldier)
@@ -1383,6 +1440,19 @@ CityView::CityView(sp<GameState> state)
 			                  if (v && v->owner == this->state->getPlayer())
 			                  {
 				                  setSelectionState(CitySelectionState::GotoLocation);
+				                  break;
+			                  }
+		                  }
+	                  });
+	vehicleForm->findControl("BUTTON_MEDEVAC")
+	    ->addCallback(FormEventType::ButtonClick,
+	                  [this](Event *)
+	                  {
+		                  for (auto &v : this->state->current_city->cityViewSelectedOwnedVehicles)
+		                  {
+			                  if (v && v->owner == this->state->getPlayer())
+			                  {
+				                  setSelectionState(CitySelectionState::MedicalEvacuation);
 				                  break;
 			                  }
 		                  }
@@ -4643,6 +4713,13 @@ void CityView::setSelectionState(CitySelectionState selectionState)
 		case CitySelectionState::ManualControl:
 		{
 			overlayTab->findControlTyped<Label>("TEXT")->setText(tr("Manual control"));
+			overlayTab->setVisible(true);
+			break;
+		}
+		case CitySelectionState::MedicalEvacuation:
+		{
+			overlayTab->findControlTyped<Label>("TEXT")->setText(
+			    tr("Click on building with wounded soldiers to order medical evacuation"));
 			overlayTab->setVisible(true);
 			break;
 		}

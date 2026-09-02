@@ -196,6 +196,13 @@
         <image/>
         <imagedepressed>PCK:xcom3/ufodata/icon_m.pck:xcom3/ufodata/icon_m.tab:3:xcom3/ufodata/pal_01.dat</imagedepressed>
       </graphicbutton>
+      <graphicbutton id="BUTTON_MEDEVAC">
+        <tooltip text="Medical evacuation: pick up wounded soldiers from a building" font="smallset"/>
+        <size width="27" height="46"/>
+        <position x="552" y="75"/>
+        <image/>
+        <imagedepressed>PCK:xcom3/ufodata/icon_m.pck:xcom3/ufodata/icon_m.tab:9:xcom3/ufodata/pal_01.dat</imagedepressed>
+      </graphicbutton>
     </style>
   </form>
 </openapoc>
