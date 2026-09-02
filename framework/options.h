@@ -84,6 +84,7 @@ extern ConfigOptionBool optionFerryChecksRelationshipWhenBuying;
 extern ConfigOptionBool optionAllowManualCityTeleporters;
 extern ConfigOptionBool optionAllowManualCargoFerry;
 extern ConfigOptionBool optionAllowSoldierTaxiUse;
+extern ConfigOptionBool optionAutoMedEvacAfterBattle;
 extern ConfigOptionBool optionAllowUnloadingClips;
 extern ConfigOptionBool optionPayloadExplosion;
 extern ConfigOptionBool optionDisplayUnitPaths;

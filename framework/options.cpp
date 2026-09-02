@@ -106,6 +106,7 @@ void dumpOptionsToLog()
 	dumpOption(optionAllowManualCityTeleporters);
 	dumpOption(optionAllowManualCargoFerry);
 	dumpOption(optionAllowSoldierTaxiUse);
+	dumpOption(optionAutoMedEvacAfterBattle);
 	dumpOption(optionAllowUnloadingClips);
 	dumpOption(optionPayloadExplosion);
 	dumpOption(optionDisplayUnitPaths);
@@ -358,6 +359,11 @@ ConfigOptionBool
                                 tr("Allow manual ferrying of cargo and non-combatants"), true);
 ConfigOptionBool optionAllowSoldierTaxiUse("OpenApoc.NewFeature", "AllowSoldierTaxiUse",
                                            tr("Allow soldiers to call taxi"), true);
+ConfigOptionBool optionAutoMedEvacAfterBattle(
+    "OpenApoc.NewFeature", "AutoMedEvacAfterBattle",
+    tr("After a battle, send transports carrying wounded soldiers to the nearest base with free "
+       "Medical capacity instead of their home base"),
+    false);
 ConfigOptionBool optionAllowUnloadingClips("OpenApoc.NewFeature", "AdvancedInventoryControls",
                                            tr("Allow unloading clips and quick equip"), true);
 ConfigOptionBool optionPayloadExplosion("OpenApoc.NewFeature", "PayloadExplosion",

@@ -43,17 +43,18 @@ At the end of each session:
 
 The sandbox has no apt access; dependencies were built from source into
 `/opt/local` (SDL2 2.30.11, Boost 1.84 locale+program_options, libogg/libvorbis,
-stub libGL + GL/X11 headers) and cmake/ninja/meson installed via
-`pip install --user`. If `/opt/local` is missing, that setup must be repeated.
+stub libGL + GL/X11 headers) and cmake/ninja/meson installed into `~/venv`.
+If `/opt/local` or `~/venv` is missing, that setup must be repeated.
 
 ```sh
-export PATH=$HOME/.local/bin:$PATH PKG_CONFIG_PATH=/opt/local/lib/pkgconfig
+export PATH=$HOME/venv/bin:/opt/local/bin:$PATH LD_LIBRARY_PATH=/opt/local/lib
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DBUILD_LAUNCHER=OFF -DEXTRACT_DATA=OFF -DENABLE_BACKTRACE=OFF \
       -DCMAKE_PREFIX_PATH=/opt/local
-ninja -C build -j2
-cd build && ctest -j2   # 7/10 pass; test_images, test_serialize_difficulty0,
-                        # test_lab_assignment need CD data — expected failures
+ninja -C build
+cd build && ctest -j2   # 8/11 pass (incl. test_medevac); test_images,
+                        # test_serialize_difficulty0, test_lab_assignment need
+                        # CD data — expected failures
 ```
 
 ## Feature Backlog
@@ -233,11 +234,30 @@ before execution. The project owner approved the complete feature set on
 - **2026-08-24** — Abschluss-Phase (autonom): Auto-Abfangjaeger-Toggle, produzierte
   Ausruestung wirkt im Gefecht (Boni), Investitionen/Dividenden und Syndikat-Schwarzmarkt.
   TEST 14 (Stadt) + TEST 29 (Gefecht) decken die neuen Systeme ab.
+- **2026-09-02** — **F1 medevac fully integrated** (C++ side, commits `03fc3c4`,
+  `a3e770d`, `bd0ef3d`): (1) departure/arrival `GameEvent`s +
+  `Notifications.City.MedicalEvacuationStarted/Completed` message strings and
+  event types appended after `None` in the enum + `gamestate_serialize.xml`
+  (savegame ids stable); (2) medevac pickup decision extracted into the pure,
+  game-state-free planner `game/state/city/medevac.h` (base choice = home base
+  with capacity preferred, else nearest; boarding limited by free seats AND free
+  Medical capacity; eligibility = living wounded player soldiers) with
+  `tests/test_medevac.cpp` (12 cases, runs without CD data); (3) manual city UI
+  order: new `CitySelectionState::MedicalEvacuation` + `BUTTON_MEDEVAC` on the
+  vehicles tab (`data/forms/city/tab2.form`); selecting it and clicking a
+  building orders every selected passenger-capable vehicle to pick up wounded
+  soldiers there. Post-battle hook (this session): when the opt-in option
+  `OpenApoc.NewFeature.AutoMedEvacAfterBattle` (default OFF, visible in the
+  cityscape options list) is enabled, transports returning from a battle that
+  carry wounded X-COM soldiers are rerouted to the nearest player base with free
+  Medical capacity when their home base cannot treat them (wounded are re-homed
+  there; the medevac mission's arrival notification fires on landing).
+  Full build green (115 targets), `ctest` 8/8 non-CD tests pass.
 ### Next Steps (ordered)
 
-1. **F1 medevac integration** — add focused mission tests, expose a manual city
-   UI order, add departure/arrival `GameEvent` messages, and then add the
-   optional post-battle dispatch hook. Core pickup and return behavior exists.
+1. **F1 leftover (small)** — in-game visual/UX validation of the medevac order
+   button and the auto-dispatch reroute with real CD assets; verify a savegame
+   round-trip containing an in-flight `MedicalEvacuation` mission.
 2. **F3 tactical planning integration** — connect the new serialized action
    model/executor to squad-level go-code controls and tactical route editing and
    rendering; then extend action types to doors, attacks, throws, equipment and
@@ -255,6 +275,7 @@ before execution. The project owner approved the complete feature set on
 
 | Date | Decision |
 |------|----------|
+| 2026-09-02 | F1 medevac C++ integration complete (mission core, notifications, planner tests, manual city UI order, opt-in post-battle auto-dispatch `AutoMedEvacAfterBattle` default OFF). |
 | 2026-08-22 | Goal fixed: engine modernization + incremental code rewrite, gameplay preserved. |
 | 2026-08-22 | Development happens without the original CD (`EXTRACT_DATA=OFF`). |
 | 2026-08-22 | This file is the persistent project memory; keep it updated. |

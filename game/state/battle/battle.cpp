@@ -14,6 +14,7 @@
 #include "game/state/city/base.h"
 #include "game/state/city/building.h"
 #include "game/state/city/city.h"
+#include "game/state/city/medevac.h"
 #include "game/state/city/vehicle.h"
 #include "game/state/city/vehiclemission.h"
 #include "game/state/gameevent.h"
@@ -3393,17 +3394,104 @@ void Battle::exitBattle(GameState &state)
 		}
 	}
 
-	// Sending vehicles back to base
+	// Sending vehicles back to base.
+	// F1 medevac (optional): if a returning transport carries wounded X-COM
+	// soldiers but its home base cannot treat them, reroute it to the nearest
+	// player base with free Medical capacity (in the same city). Wounded
+	// soldiers are re-homed there, matching the manual medevac order, so
+	// healing starts once the transport lands.
+	const bool autoMedEvacAfterBattle =
+	    config().getBool("OpenApoc.NewFeature.AutoMedEvacAfterBattle");
 	for (auto &v : playerVehicles)
 	{
-		if (v->city.id == "CITYMAP_HUMAN")
+		if (v->city.id != "CITYMAP_HUMAN")
 		{
-			v->setMission(state, VehicleMission::gotoBuilding(state, *v));
-			v->addMission(state, VehicleMission::offerService(state, *v), true);
+			v->setMission(state, VehicleMission::gotoPortal(state, *v));
+			continue;
+		}
+
+		StateRef<Building> medevacDestination;
+		if (autoMedEvacAfterBattle)
+		{
+			// Count wounded X-COM soldiers aboard this transport
+			int woundedAboard = 0;
+			for (auto agent : v->currentAgents)
+			{
+				if (agent->owner == player && agent->type->role == AgentType::Role::Soldier &&
+				    agent->modified_stats.health > 0 &&
+				    agent->modified_stats.health < agent->current_stats.health)
+				{
+					woundedAboard++;
+				}
+			}
+			if (woundedAboard > 0)
+			{
+				// Choose the receiving base with the same rules as the medevac
+				// mission (home base preferred when it has free capacity,
+				// otherwise the nearest one).
+				std::vector<MedevacPlanner::BaseCandidate> baseCandidates;
+				std::vector<sp<Base>> bases;
+				const auto location = v->currentBuilding ? v->currentBuilding->bounds.p0
+				                                         : Vec2<int>{(int)v->position.x,
+				                                                     (int)v->position.y};
+				for (const auto &entry : state.player_bases)
+				{
+					auto base = entry.second;
+					if (!base || !base->building || base->building->city != v->city)
+					{
+						continue;
+					}
+					MedevacPlanner::BaseCandidate candidate;
+					candidate.freeMedicalCapacity =
+					    base->getCapacityTotal(FacilityType::Capacity::Medical) -
+					    base->getCapacityUsed(state, FacilityType::Capacity::Medical);
+					candidate.isHomeBase = base->building == v->homeBuilding;
+					const auto delta = base->building->bounds.p0 - location;
+					candidate.distanceSquared = delta.x * delta.x + delta.y * delta.y;
+					baseCandidates.push_back(candidate);
+					bases.push_back(base);
+				}
+				const int destinationIndex =
+				    MedevacPlanner::chooseDestinationBase(baseCandidates);
+				if (destinationIndex != -1)
+				{
+					const auto destination = bases[destinationIndex];
+					if (destination->building != v->homeBuilding)
+					{
+						LogInfo(
+						    "F1 medevac: rerouting transport \"{0}\" carrying {1} wounded to "
+						    "base \"{2}\" (home base has no free Medical capacity)",
+						    v->name, woundedAboard, destination->name);
+						for (auto agent : v->currentAgents)
+						{
+							if (agent->owner == player &&
+							    agent->type->role == AgentType::Role::Soldier &&
+							    agent->modified_stats.health > 0 &&
+							    agent->modified_stats.health < agent->current_stats.health)
+							{
+								agent->homeBuilding = destination->building;
+							}
+						}
+						medevacDestination = destination->building;
+					}
+				}
+			}
+		}
+
+		if (medevacDestination)
+		{
+			// Reuse the medevac mission with the pick-up step already done
+			// (missionCounter == 1): the mission code flies to the destination
+			// and emits the arrival notification there.
+			auto medevac = VehicleMission::medicalEvacuation(state, *v, medevacDestination);
+			medevac.missionCounter = 1;
+			medevac.targetBuilding = medevacDestination;
+			v->setMission(state, medevac);
 		}
 		else
 		{
-			v->setMission(state, VehicleMission::gotoPortal(state, *v));
+			v->setMission(state, VehicleMission::gotoBuilding(state, *v));
+			v->addMission(state, VehicleMission::offerService(state, *v), true);
 		}
 	}
 
