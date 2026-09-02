@@ -5,6 +5,9 @@
 > memory of previous conversations — everything agreed upon must be written down
 > here (or in the linked docs). Update this file whenever a decision is made or a
 > milestone is reached.
+>
+> Orientation map (what lives where, canonical files, build reality): see
+> [docs/SSOT.md](docs/SSOT.md).
 
 ## Project Goal
 
@@ -253,6 +256,10 @@ before execution. The project owner approved the complete feature set on
   Medical capacity when their home base cannot treat them (wounded are re-homed
   there; the medevac mission's arrival notification fires on landing).
   Full build green (115 targets), `ctest` 8/8 non-CD tests pass.
+- **2026-09-02** — Established the SSOT orientation map
+  [docs/SSOT.md](docs/SSOT.md) (canonical files, build reality, conventions,
+  status at a glance); `PROJECT_PLAN.md` stays the dated session memory and now
+  links to it.
 ### Next Steps (ordered)
 
 1. **F1 leftover (small)** — in-game visual/UX validation of the medevac order
