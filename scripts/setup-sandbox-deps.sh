@@ -33,8 +33,8 @@ ln -sf /opt/local/bin/pkgconf /opt/local/bin/pkg-config
 log "libogg"
 cd "$HOME/src"
 if [ ! -d libogg-1.3.5 ]; then
-  curl -sL -o ogg.tar.gz https://github.com/xiph/ogg/releases/download/v1.3.5/libogg-1.3.5.tar.gz
-  tar xf ogg.tar.gz
+  curl -sSL --retry 5 -o ogg.tgz https://codeload.github.com/xiph/ogg/tar.gz/refs/tags/v1.3.5
+  tar xf ogg.tgz && mv ogg-1.3.5 libogg-1.3.5
 fi
 rm -rf ogg-build && mkdir ogg-build && cd ogg-build
 cmake ../libogg-1.3.5 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/local \
@@ -45,8 +45,8 @@ cmake --install . >/dev/null
 log "libvorbis"
 cd "$HOME/src"
 if [ ! -d libvorbis-1.3.7 ]; then
-  curl -sL -o vorbis.tar.gz https://github.com/xiph/vorbis/releases/download/v1.3.7/libvorbis-1.3.7.tar.gz
-  tar xf vorbis.tar.gz
+  curl -sSL --retry 5 -o vorbis.tgz https://codeload.github.com/xiph/vorbis/tar.gz/refs/tags/v1.3.7
+  tar xf vorbis.tgz && mv vorbis-1.3.7 libvorbis-1.3.7
 fi
 rm -rf vorbis-build && mkdir vorbis-build && cd vorbis-build
 cmake ../libvorbis-1.3.7 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/local \
@@ -58,8 +58,8 @@ cmake --install . >/dev/null
 log "SDL2"
 cd "$HOME/src"
 if [ ! -d SDL2-2.30.11 ]; then
-  curl -sL -o sdl.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-2.30.11/SDL2-2.30.11.tar.gz
-  tar xf sdl.tar.gz
+  curl -sSL --retry 5 -o sdl.tgz https://codeload.github.com/libsdl-org/SDL/tar.gz/refs/tags/release-2.30.11
+  tar xf sdl.tgz && mv SDL-release-2.30.11 SDL2-2.30.11
 fi
 rm -rf sdl-build && mkdir sdl-build && cd sdl-build
 cmake ../SDL2-2.30.11 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/local \
@@ -109,7 +109,14 @@ static inline __GLXextFuncPtr glXGetProcAddressARB(const GLubyte *procName)
 EOF
 
 log "ldconfig"
+# pkgconf installs its library under the multiarch libdir; expose it from
+# /opt/local/lib and put both locations on the dynamic-loader path.
+if [ -d /opt/local/lib/x86_64-linux-gnu ]; then
+  ln -sf /opt/local/lib/x86_64-linux-gnu/libpkgconf.so.8.0.0 /opt/local/lib/libpkgconf.so.8
+  ln -sf libpkgconf.so.8 /opt/local/lib/libpkgconf.so
+fi
 echo /opt/local/lib | sudo tee /etc/ld.so.conf.d/optlocal.conf >/dev/null
+echo /opt/local/lib/x86_64-linux-gnu | sudo tee -a /etc/ld.so.conf.d/optlocal.conf >/dev/null
 sudo ldconfig
 
 log "verify"
