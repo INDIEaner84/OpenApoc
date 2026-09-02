@@ -30,6 +30,7 @@ without it. Playing the game still requires the original assets.
 | Session memory, work log, decisions log, next steps, feature backlog (F1/F2/F3), owner agreements | `PROJECT_PLAN.md` (root) |
 | Stable architecture analysis (layer responsibilities, what belongs where) | `docs/ARCHITECTURE_ANALYSIS.md` |
 | This orientation map | `docs/SSOT.md` |
+| Sandbox dependency provisioning + how to build/test from scratch | `docs/DEV_ENVIRONMENT.md` + `scripts/setup-sandbox-deps.sh` |
 | Unit tests (headless, most CD-free) | `tests/` (registered in `tests/CMakeLists.txt`) |
 | OpenApoc C++ engine + game state | `framework/`, `library/`, `forms/`, `game/`, `dependencies/` |
 | Separate browser-based tactics/city game (autonomous phases, own tests) | `browser-game/` (see its `README`) |
@@ -69,8 +70,9 @@ not regressions.
   (see backlog F2 in `PROJECT_PLAN.md`).
 - **F3 — Tactical squad planning**: serialized `BattleUnitPlanAction` model,
   per-unit executor with movement/stance/turn/wait/go-code-barrier actions and
-  keyboard UI exist (P1–P3). Next: squad-level go-code controls, route editing
-  UI, further action types.
+  keyboard UI exist (P1–P3). P4 started: `OpenDoor`, `AttackLocation`,
+  `ThrowItem` actions + `Ctrl+Alt+F/O/T` authoring hotkeys. Plans execute in
+  real-time mode only (TB support is an open follow-up).
 - **Engine modernization**: not started; entry point is the small self-contained
   `library/` layer per `docs/ARCHITECTURE_ANALYSIS.md`.
 - **`browser-game/`**: independently developed and tested (own README + tests).

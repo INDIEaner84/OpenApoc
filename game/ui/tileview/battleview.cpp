@@ -3165,6 +3165,37 @@ bool BattleView::handleKeyDown(Event *e)
 			}
 			break;
 		}
+		case SDLK_f:
+		case SDLK_o:
+		case SDLK_t:
+		{
+			// Ctrl+Alt+F/O/T appends a tactical plan action at the highlighted
+			// tile: fire at the location, open the door there, or throw a
+			// grenade there. Two modifiers keep the vanilla battle hotkeys.
+			if (!(modifierLCtrl || modifierRCtrl) || !(modifierLAlt || modifierRAlt))
+				break;
+			if (battle.battleViewSelectedUnits.empty())
+				return true;
+			BattleUnitPlanAction action;
+			switch (e->keyboard().KeyCode)
+			{
+				case SDLK_f:
+					action.type = BattleUnitPlanAction::Type::AttackLocation;
+					break;
+				case SDLK_o:
+					action.type = BattleUnitPlanAction::Type::OpenDoor;
+					break;
+				case SDLK_t:
+					action.type = BattleUnitPlanAction::Type::ThrowItem;
+					break;
+				default:
+					break;
+			}
+			action.targetLocation = getSelectedTilePosition();
+			for (auto &unit : battle.battleViewSelectedUnits)
+				unit->addPlannedAction(action);
+			return true;
+		}
 		case SDLK_F1:
 			if (config().getBool("OpenApoc.NewFeature.DebugCommandsVisible"))
 			{

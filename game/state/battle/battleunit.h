@@ -101,6 +101,15 @@ enum class ReserveShotMode
 	None = 0
 };
 
+// Enum for tracking unit's weapon state
+enum class WeaponStatus
+{
+	NotFiring,
+	FiringLeftHand,
+	FiringRightHand,
+	FiringBothHands
+};
+
 // A serialized high-level order. The plan executor translates one action at a
 // time into existing BattleUnitMission instances, so normal pathfinding,
 // interrupts and turn-based TU acquisition remain authoritative.
@@ -113,6 +122,12 @@ struct BattleUnitPlanAction
 		Turn,
 		Wait,
 		WaitForGoCode,
+		// F3 P4 tactical actions. OpenDoor/AttackLocation are released as
+		// direct orders (doors are not missions in this engine), ThrowItem is
+		// released as a regular BattleUnitMission like the AI does.
+		OpenDoor,
+		AttackLocation,
+		ThrowItem,
 	};
 
 	Type type = Type::Move;
@@ -122,6 +137,8 @@ struct BattleUnitPlanAction
 	MovementMode movementMode = MovementMode::Walking;
 	unsigned int waitTicks = 0;
 	UString goCode;
+	// Hands to fire with for AttackLocation (defaults to both hands)
+	WeaponStatus weaponStatus = WeaponStatus::FiringBothHands;
 };
 
 // Unit's general type, used in pathfinding
@@ -131,15 +148,6 @@ enum class BattleUnitType
 	SmallFlyer,
 	LargeWalker,
 	LargeFlyer
-};
-
-// Enum for tracking unit's weapon state
-enum class WeaponStatus
-{
-	NotFiring,
-	FiringLeftHand,
-	FiringRightHand,
-	FiringBothHands
 };
 
 enum class PsiStatus

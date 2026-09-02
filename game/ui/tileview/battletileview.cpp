@@ -1537,12 +1537,23 @@ void BattleTileView::render()
 				for (unsigned int i = unit->nextPlannedAction; i < unit->plannedActions.size(); i++)
 				{
 					const auto &action = unit->plannedActions[i];
-					if (action.type != BattleUnitPlanAction::Type::Move)
-						continue;
-					targetLocationsToDraw.emplace_back(
-					    action.targetLocation, previous,
-					    action.targetLocation.z == battle.battleViewZLevel - 1);
-					previous = action.targetLocation;
+					if (action.type == BattleUnitPlanAction::Type::Move)
+					{
+						targetLocationsToDraw.emplace_back(
+						    action.targetLocation, previous,
+						    action.targetLocation.z == battle.battleViewZLevel - 1);
+						previous = action.targetLocation;
+					}
+					else if (action.type == BattleUnitPlanAction::Type::OpenDoor ||
+					         action.type == BattleUnitPlanAction::Type::AttackLocation ||
+					         action.type == BattleUnitPlanAction::Type::ThrowItem)
+					{
+						// Mark tactical orders (open door / fire / throw) at
+						// their target tile so the plan stays inspectable.
+						targetLocationsToDraw.emplace_back(
+						    action.targetLocation, action.targetLocation,
+						    action.targetLocation.z == battle.battleViewZLevel - 1);
+					}
 				}
 			}
 

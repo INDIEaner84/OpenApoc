@@ -527,6 +527,7 @@
     <member>movementMode</member>
     <member>waitTicks</member>
     <member>goCode</member>
+    <member>weaponStatus</member>
   </object>
   <object>
     <name>BattleUnitMission</name>
@@ -1649,6 +1650,9 @@
     <value>Turn</value>
     <value>Wait</value>
     <value>WaitForGoCode</value>
+    <value>OpenDoor</value>
+    <value>AttackLocation</value>
+    <value>ThrowItem</value>
   </enum>
   <enum>
     <name>BattleUnitMission::Type</name>

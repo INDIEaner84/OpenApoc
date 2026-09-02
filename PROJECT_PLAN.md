@@ -154,6 +154,9 @@ before execution. The project owner approved the complete feature set on
    `Execute`) shared across squads; execute all or release one phase at a time.
 4. **P4 — Tactical actions:** doors, aimed/fire-mode orders, grenade throws,
    smoke, equipment use, cover and observation/fire sectors.
+   *Status 2026-09-02: partial — OpenDoor, AttackLocation (fire at tile until
+   the weapon stops) and ThrowItem (first grenade at tile) added to the plan
+   model + executor (see Done); smoke, item use, fire sectors still open.*
 5. **P5 — Robustness and UX:** edit/reorder/copy routes, optional templates,
    TU/time estimates, path/fire-sector conflict and friendly-fire warnings,
    automatic rerouting, and configurable reactions to contact, injury, panic,
@@ -186,6 +189,26 @@ before execution. The project owner approved the complete feature set on
 
 ### Done
 
+- **2026-09-02** — F3 P4 part 1: extended the serialized
+  `BattleUnitPlanAction` model and its executor with three tactical action
+  types — `OpenDoor` (free direct order opening the door on the target tile;
+  skips gracefully if the door is gone), `AttackLocation` (starts firing at
+  the tile with the chosen hands; the executor now gates on `isBusy()` so it
+  waits until the attack ends — magazine empty/no LOF/TU exhausted — before
+  continuing), and `ThrowItem` (equips the unit's first grenade, queues the
+  regular `throwItem` mission and primes it, mirroring the AI grenade order).
+  Hotkeys: `Ctrl+Alt+F/O/T` append Fire/Open-door/Throw at the highlighted
+  tile; the battlescape overlay marks those orders on the map. Serialization
+  extended (`weaponStatus` member, three new `BattleUnitPlanAction::Type`
+  values appended). Notes: the plan executor only runs in real-time mode
+  (pre-existing P1–P3 behaviour); TB execution is an open follow-up.
+- **2026-09-02** — Sandbox resilience: the dev sandbox is periodically reset
+  to a clean base image (all of `/opt/local`, `~/venv`, `~/src`, `build/` and
+  even the local git refs can disappear mid-session; pushed commits and repo
+  files survive). Added `scripts/setup-sandbox-deps.sh` +
+  `docs/DEV_ENVIRONMENT.md` so a fresh checkout can re-provision everything in
+  one command. Workflow rule going forward: commit + push early and often, and
+  treat the remote branch as the only durable store for git state.
 - **2026-08-22** — Started F3 P1–P3 core: added a serialized, mission-independent
   `BattleUnitPlanAction` model and per-unit authored plan state. The executor
   releases one action at a time into the existing mission system and currently
@@ -265,10 +288,10 @@ before execution. The project owner approved the complete feature set on
 1. **F1 leftover (small)** — in-game visual/UX validation of the medevac order
    button and the auto-dispatch reroute with real CD assets; verify a savegame
    round-trip containing an in-flight `MedicalEvacuation` mission.
-2. **F3 tactical planning integration** — connect the new serialized action
-   model/executor to squad-level go-code controls and tactical route editing and
-   rendering; then extend action types to doors, attacks, throws, equipment and
-   safety/replanning policies.
+2. **F3 tactical planning (P4 rest + P5)** — next: squad-level plan authoring
+   UI polish and TB-mode executor support (plans currently run in RT only),
+   then smoke/equipment/fire-sector actions and the robustness/UX backlog
+   (edit/reorder routes, warnings, replanning policies).
 3. **F2 base building** — clarify the open questions in Feature Backlog F2
    with the project owner, then break into tasks.
 4. **Engine modernization** starting with the small, self-contained

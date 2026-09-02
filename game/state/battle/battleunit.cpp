@@ -8,7 +8,9 @@
 #include "game/state/battle/ai/aitype.h"
 #include "game/state/battle/ai/unitaihelper.h"
 #include "game/state/battle/battle.h"
+#include "game/state/battle/battledoor.h"
 #include "game/state/battle/battleitem.h"
+#include "game/state/battle/battlemappart.h"
 #include "game/state/gameevent.h"
 #include "game/state/gamestate.h"
 #include "game/state/rules/battle/battlecommonsamplelist.h"
@@ -5622,7 +5624,11 @@ void BattleUnit::releasePlanGoCode(const UString &goCode)
 
 void BattleUnit::updatePlan(GameState &state)
 {
-	if (!planExecuting || planPaused || !missions.empty() || !isConscious())
+	// Only release the next authored action while the unit is truly idle:
+	// isBusy() covers queued missions as well as active attacks, so long
+	// running planned orders (e.g. firing at a location) keep the executor
+	// waiting until the unit stops on its own.
+	if (!planExecuting || planPaused || isBusy() || !isConscious())
 		return;
 	if (nextPlannedAction >= plannedActions.size())
 	{
@@ -5653,6 +5659,106 @@ void BattleUnit::updatePlan(GameState &state)
 			nextPlannedAction++;
 			updatePlan(state);
 			return;
+		case BattleUnitPlanAction::Type::OpenDoor:
+		{
+			// Opening a door is a free, instant direct order in this engine
+			// (doors also open automatically when walked through). An explicit
+			// plan action lets a soldier open a door from the previous
+			// waypoint, e.g. for breach-and-clear sequencing. If the door is
+			// already open or was destroyed during the fight we just move on.
+			bool foundDoor = false;
+			if (state.current_battle)
+			{
+				for (auto &doorEntry : state.current_battle->doors)
+				{
+					const auto &door = doorEntry.second;
+					for (auto &weakPart : door->mapParts)
+					{
+						auto part = weakPart.lock();
+						if (part && (Vec3<int>)part->position == action.targetLocation)
+						{
+							foundDoor = true;
+							if (door->operational && !door->open)
+							{
+								door->setDoorState(state, true);
+							}
+							break;
+						}
+					}
+					if (foundDoor)
+					{
+						break;
+					}
+				}
+			}
+			if (!foundDoor)
+			{
+				LogWarning("Unit {0} planned door open at {1} but found no door there", id,
+				           action.targetLocation);
+			}
+			nextPlannedAction++;
+			return;
+		}
+		case BattleUnitPlanAction::Type::AttackLocation:
+		{
+			// Fire at the tile with the planned hands. Attacking is a unit
+			// state, not a mission: isBusy() blocks the executor until the
+			// unit stops (magazine empty / no line of fire / TU exhausted in
+			// turn-based play), then the plan continues.
+			if (startAttacking(state, action.targetLocation, action.weaponStatus))
+			{
+				nextPlannedAction++;
+			}
+			else
+			{
+				LogWarning("Unit {0} could not start planned attack at {1}", id,
+				           action.targetLocation);
+				planPaused = true;
+			}
+			return;
+		}
+		case BattleUnitPlanAction::Type::ThrowItem:
+		{
+			// Throw the agent's first grenade at the planned tile, mirroring
+			// the AI grenade order: equip it, queue the throw mission, prime
+			// it so it detonates shortly after leaving the hand.
+			sp<AEquipment> grenade;
+			for (auto &item : agent->equipment)
+			{
+				if (item->type->type == AEquipmentType::Type::Grenade)
+				{
+					grenade = item;
+					break;
+				}
+			}
+			if (!grenade)
+			{
+				LogWarning("Unit {0} planned a throw but has no grenade", id);
+				planPaused = true;
+				return;
+			}
+			UnitAIHelper::ensureItemInSlot(state, grenade, EquipmentSlotType::RightHand);
+			mission = BattleUnitMission::throwItem(*this, grenade, action.targetLocation);
+			if (!mission)
+			{
+				LogWarning("Unit {0} cannot throw to {1}", id, action.targetLocation);
+				planPaused = true;
+				return;
+			}
+			if (addMission(state, mission))
+			{
+				grenade->prime(grenade->getPayloadType()->trigger_type != TriggerType::Boomeroid,
+				               0, 12.0f);
+				nextPlannedAction++;
+			}
+			else
+			{
+				// addMission owns and deletes rejected missions where appropriate.
+				LogWarning("Unit {0} could not execute planned throw", id);
+				planPaused = true;
+			}
+			return;
+		}
 	}
 
 	if (!mission)
