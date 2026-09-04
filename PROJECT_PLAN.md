@@ -136,6 +136,41 @@ specified with the project owner — see open questions.)*
   - Better placement UX in `basescreen` (rotate, move before confirm)
   - Rebalanced costs/build times (data lives in mod files, not code)
 
+**Owner decision 2026-09-02 ("alles") — agreed scope (all four candidates):**
+
+F2 is split into four additive slices. Implement in order; each slice keeps
+savegames readable (new `Base` members appended in `gamestate_serialize.xml`),
+is verified by `ninja -C build` + `ctest` (8/11, CD-gated excluded) and, where
+behaviour is involved, by an in-game pass with real assets before the next
+slice starts.
+
+1. **Build queue + progress** (state + UI)
+   - State: `Base` keeps `std::list<FacilityConstruction>`-style entries
+     (facility type, grid position, ticks/days remaining, cost paid). Serialize
+     appended to `gamestate_serialize.xml` (`Base` object + new small object).
+     Daily/construciton tick in the existing base update path advances the
+     head entry; completion calls the existing `buildFacility` placement so
+     capacities/usage behave exactly as today.
+   - UI (`basescreen.cpp`/forms): queue list with progress display; start a
+     build while another is running (auto-queue); cancel queued (not yet
+     started) entries for free.
+   - Acceptance: multiple builds in sequence build one after another; progress
+     visible; old savegames load with empty queue.
+2. **Cancel/refund of running construction**
+   - Cancelling an in-progress entry refunds a configurable percentage
+     (default 100% before start, 50% while running — confirm with owner) and
+     frees the grid cells immediately.
+   - Acceptance: money delta correct; cells usable again; savegame round-trip.
+3. **Facility upgrade paths**
+   - Requires data modelling first: ask whether upgrade relations live in mod
+     data (new fields on `FacilityType`) or hardcoded mapping in code. Rule of
+     this fork: prefer mod data + `gamestate_serialize.xml`-free (rules are
+     loaded, not saved), so a mod-data extension is the default.
+   - Building an upgrade keeps the cell occupied, swaps facility type on
+     completion, refunds the demolished facility's cost contribution.
+4. **Placement UX in basescreen** — rotate/move-before-confirm and clearer
+   build-error feedback; pure `forms`/`basescreen.cpp` work, lowest risk.
+
 ### F3 — Tactical squad planning (Rogue Spear style) 🗺️
 
 **Goal:** Extend the tactical overview into an optional command-planning system
@@ -189,6 +224,19 @@ before execution. The project owner approved the complete feature set on
 
 ### Done
 
+- **2026-09-02** — Engine modernization, `library/` first pass: fixed the
+  never-instantiated (hence latent) `Xorshift128Plus` stream operators
+  (`get_state`/`set_state` → `getState`/`setState`) and made the header
+  self-contained (`<istream>`/`<ostream>`); `test_rng` now round-trips rng
+  state through a stream. RNG output semantics untouched (savegame/replay
+  critical). `Rect` queries are now `constexpr` + `[[nodiscard]]`, the empty
+  `private:` block is gone and `compactRectSet` lost its `goto` (do/while
+  form, behaviour preserved, covered by `test_rect`). `split()` collapse
+  semantics made symmetric (trailing delimiters no longer yield an empty tail
+  field; only callers are resource-path splits with exact field counts and
+  tooltips — unaffected). Extra unit coverage: invalid hex / unknown colour
+  names (`test_colour`), `split` cases incl. non-ASCII (`test_unicode`).
+  Build + 8/8 CD-free tests green.
 - **2026-09-02** — F3 P4 part 1: extended the serialized
   `BattleUnitPlanAction` model and its executor with three tactical action
   types — `OpenDoor` (free direct order opening the door on the target tile;
@@ -293,11 +341,14 @@ before execution. The project owner approved the complete feature set on
    UI polish and TB-mode executor support (plans currently run in RT only),
    then smoke/equipment/fire-sector actions and the robustness/UX backlog
    (edit/reorder routes, warnings, replanning policies).
-3. **F2 base building** — clarify the open questions in Feature Backlog F2
-   with the project owner, then break into tasks.
-4. **Engine modernization** starting with the small, self-contained
-   `library/` layer (1.5 kLOC) — low risk, everything depends on it, good
-   place to establish modern conventions.
+3. **F2 base building** — scope decided (all four: build queue, cancel/refund,
+   upgrade paths, placement UX). Task breakdown in Feature Backlog F2. Slice 1
+   (build queue + progress, state + UI) is next; in-game validation with real
+   assets needed per slice before the next one starts.
+4. **Engine modernization (library layer)** — first pass done 2026-09-02
+   (see Done); continue with the framework/ layer per ARCHITECTURE_ANALYSIS
+   candidate list (renderer consolidation, threading, serialization codegen),
+   always keeping build + 8/8 CD-free tests green.
 5. Work through the ~283 `TODO`/`FIXME` markers in the code opportunistically
    while touching the respective modules.
 6. Keep the fork regularly synced with upstream to avoid drift.

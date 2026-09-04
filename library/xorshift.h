@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <istream>
 #include <limits>
 #include <map>
+#include <ostream>
 #include <random>
 #include <stdexcept>
 
@@ -81,7 +83,7 @@ std::basic_ostream<charT, traits> &operator<<(std::basic_ostream<charT, traits> 
                                               const Xorshift128Plus<UIntType> &rng)
 {
 	uint64_t state[2];
-	rng.get_state(state);
+	rng.getState(state);
 	return os << state[0] << " " << state[1];
 }
 
@@ -92,7 +94,7 @@ std::basic_istream<charT, traits> &operator>>(std::basic_istream<charT, traits> 
 	uint64_t state[2];
 	is >> state[0];
 	is >> state[1];
-	rng.set_state(state);
+	rng.setState(state);
 	return is;
 }
 

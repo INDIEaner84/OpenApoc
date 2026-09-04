@@ -63,5 +63,27 @@ int main(int argc, char **argv)
 		++it_expected;
 		++it_test;
 	}
+
+	// Invalid input must never throw and must produce an opaque black colour.
+	const Colour invalid{0, 0, 0};
+	const std::list<UString> invalidHex = {"",   "#",     "red",     "#xyz",   "#12345",
+	                                       "#1234567", "#ggg",  "123456",  "fff"};
+	for (const auto &code : invalidHex)
+	{
+		const auto parsed = Colour::FromHex(code);
+		if (!(parsed == invalid))
+		{
+			LogError("Colour::FromHex(\"{0}\") did not return invalid black for bad input", code);
+			return EXIT_FAILURE;
+		}
+	}
+	// Unknown colour names are transparent black, like the original parser.
+	const Colour unknown{0, 0, 0, 0};
+	const auto parsedUnknown = Colour::FromHtmlName("not-a-colour");
+	if (!(parsedUnknown == unknown))
+	{
+		LogError("Colour::FromHtmlName(\"not-a-colour\") did not return transparent black");
+		return EXIT_FAILURE;
+	}
 	return EXIT_SUCCESS;
 }

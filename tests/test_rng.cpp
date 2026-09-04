@@ -2,6 +2,8 @@
 #include "framework/logger.h"
 #include "library/xorshift.h"
 
+#include <sstream>
+
 using namespace OpenApoc;
 
 int main(int argc, char **argv)
@@ -61,6 +63,25 @@ int main(int argc, char **argv)
 	{
 		LogError("unexpected r3 0x{0:016x}, expected 0x{1:016x}", r3, expected_r3);
 		return EXIT_FAILURE;
+	}
+
+	// Round-trip the state through a stream (instantiates operator<< / operator>>)
+	// and verify the restored rng continues with the identical sequence.
+	{
+		std::stringstream stream;
+		stream << rng;
+		Xorshift128Plus<uint64_t> streamed{};
+		stream >> streamed;
+		if (streamed != rng)
+		{
+			LogError("stream round-trip changed rng state");
+			return EXIT_FAILURE;
+		}
+		if (rng() != streamed())
+		{
+			LogError("stream-restored rng produced a different sequence");
+			return EXIT_FAILURE;
+		}
 	}
 
 	constexpr int num_test_buckets = 4;

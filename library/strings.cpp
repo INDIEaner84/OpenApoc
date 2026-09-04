@@ -83,16 +83,25 @@ U32String remove(const U32StringView str, size_t offset, size_t count)
 std::vector<UString> split(const UStringView str, const UStringView delims)
 {
 	// FIXME: Probably won't work if any of 'delims' is outside the ASCII range
+	// Consecutive delimiters collapse; leading and trailing delimiters produce
+	// no empty fields (symmetric). The empty input yields one empty field.
 	std::vector<UString> strings;
 	size_t pos = 0;
-	size_t prev = pos;
-	while ((pos = str.find_first_of(delims, prev)) != std::string::npos)
+	size_t prev = 0;
+	while ((pos = str.find_first_of(delims, prev)) != UStringView::npos)
 	{
 		if (pos > prev)
 			strings.push_back(UString(str.substr(prev, pos - prev)));
 		prev = pos + 1;
 	}
-	strings.push_back(UString(str.substr(prev, pos)));
+	if (prev < str.length())
+	{
+		strings.push_back(UString(str.substr(prev)));
+	}
+	else if (str.empty())
+	{
+		strings.emplace_back();
+	}
 	return strings;
 }
 

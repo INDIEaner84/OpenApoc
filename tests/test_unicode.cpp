@@ -202,5 +202,43 @@ int main(int argc, char **argv)
 	test_32_8_roundtrip(insert_example2);
 	test_32_8_roundtrip(insert_example3);
 
+	// split(): consecutive delimiters are collapsed, delimiters at either end
+	// do not produce empty fields, and non-ASCII content survives.
+	{
+		const auto parts = split(u8"a,b,,c", u8",");
+		const std::vector<UString> expected = {u8"a", u8"b", u8"c"};
+		if (parts != expected)
+		{
+			LogError("split(\"a,b,,c\", \",\") did not collapse empty fields");
+			return EXIT_FAILURE;
+		}
+	}
+	{
+		const auto parts = split(u8",,a,€,", u8",");
+		const std::vector<UString> expected = {u8"a", u8"€"};
+		if (parts != expected)
+		{
+			LogError("split with leading/trailing delimiters produced unexpected fields");
+			return EXIT_FAILURE;
+		}
+	}
+	{
+		const auto parts = split(u8"a::b:c", u8":");
+		const std::vector<UString> expected = {u8"a", u8"b", u8"c"};
+		if (parts != expected)
+		{
+			LogError("split with multi-character delimiter collapsed fields unexpectedly");
+			return EXIT_FAILURE;
+		}
+	}
+	{
+		const auto parts = split(u8"", u8",");
+		if (parts.size() != 1 || parts[0] != u8"")
+		{
+			LogError("split of an empty string must return one empty field");
+			return EXIT_FAILURE;
+		}
+	}
+
 	return EXIT_SUCCESS;
 }
